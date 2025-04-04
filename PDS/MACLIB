@@ -1,0 +1,2956 @@
+./ ADD NAME=ACCUM    0100-24030-24030-0038-00007-00007-00000-1050MAC 57
+         MACRO
+&L       ACCUM     &S
+         GBLB      &NOTSTAT
+&L       DS        0H
+         AIF       (&NOTSTAT).EXIT
+         AP        &S.(5),=PL2'10'
+.EXIT    MEND
+./ ADD NAME=ALIGN    0100-24030-24030-0038-00017-00017-00000-1050MAC 58
+         MACRO
+&L       ALIGN     &R,&B,&INC=0
+.*       THIS MACRO WILL NOT WORK ON R0
+         AIF       ('&B' NE 'H').F
+&L       LA        &R,&INC+1(0,&R)
+         N         &R,=X'FFFFFFFE'
+         AGO       .EXIT
+.F       AIF       ('&B' NE 'F').D
+&L       LA        &R,&INC+3(0,&R)
+         N         &R,=X'FFFFFFFC'
+         AGO       .EXIT
+.D       AIF       ('&B' EQ 'D').D1
+         MNOTE     'ALIGN ERROR. &B NOT VALID SECOND ARGUMENT'
+.D1      ANOP
+&L       LA        &R,&INC+7(0,&R)
+         N         &R,=X'FFFFFFF8'
+.EXIT    MEND
+./ ADD NAME=APARM    0100-24030-24030-0038-00108-00108-00000-1050MAC 58
+         MACRO     --  PARM  --  USED BY ASMGF1
+&LABEL   APARM     &KEYW,&MIN=,&ALEN=,&FORM=L,&ADDR=,&ON=,&OFF=,       X
+               &SUFFIX=NO,&TYPE=
+         LCLA      &LENS,&I,&J,&T
+         LCLB      &S,&SUF,&B(48)
+         LCLC      &Q,&X(12)
+         AIF       (K'&KEYW LT 1 OR K'&KEYW GT 12).MNOTE1
+&LENS    SETA      K'&KEYW
+&Q       SETC      ''''
+         AIF       ('&KEYW'(1,1) NE '''').SKIP00
+&LENS    SETA      K'&KEYW-2
+&Q       SETC      ''
+.SKIP00  ANOP
+         AIF       (K'&MIN LT 1).MNOTE2
+         AIF       ('&SUFFIX' NE 'NO' AND '&SUFFIX' NE 'YES').MNOTE3
+         AIF       ('&FORM' NE 'L' AND '&FORM' NE 'S').MNOTE4
+         AIF       ('&ADDR' NE '' AND ('&ON' NE '' OR '&OFF' NE '')).MNX
+               OTE5
+         AIF       (K'&ALEN LT 1).SKPLEN1
+         AIF       (&ALEN LT &MIN).MNOTE8
+&LENS    SETA      &ALEN
+.SKPLEN1 ANOP
+&LENS    SETA      (&MIN-1)*16+&LENS-1
+&S       SETB      ('&FORM' EQ 'S')
+&SUF     SETB      ('&SUFFIX' EQ 'YES')
+&T       SETA      &S*128+&SUF*64
+         AIF       ('&ADDR' NE '').KWTYPE
+         AIF       ('&ON' EQ '' AND '&OFF' EQ '').MNOTE6
+         AIF       ('&OFF' NE '').TRYOFF
+&I       SETA      N'&ON
+.ONLOOP  ANOP
+&J       SETA      L'&ON(&I)
+         AIF       (&J LT 1 OR &J GT 48).MNOTE7
+&B(&J)   SETB      (1)
+&I       SETA      &I-1
+         AIF       (&I GT 0).ONLOOP
+         AGO       .SETBIT
+.TRYOFF  AIF       ('&ON' NE '').TRYONF
+&I       SETA      N'&OFF
+.OFFLOOP ANOP
+&J       SETA      L'&OFF(&I)
+         AIF       (&J LT 1 OR &J GT 48).MNOTE7
+&B(&J)   SETB      (1)
+&I       SETA      &I-1
+         AIF       (&I GT 0).OFFLOOP
+&I       SETA      48
+.OFFREV  ANOP
+&B(&I)   SETB      (NOT &B(&I))
+&I       SETA      &I-1
+         AIF       (&I GT 0).OFFREV
+&T       SETA      &T+1
+         AGO       .SETBIT
+.TRYONF  ANOP
+&I       SETA      N'&ON
+.ONFLOP1 ANOP
+&J       SETA      L'&ON(&I)
+         AIF       (&J LT 17 OR &J GT 48).MNOTE7
+&B(&J)   SETB      (1)
+&I       SETA      &I-1
+         AIF       (&I GT 0).ONFLOP1
+&I       SETA      N'&OFF
+.ONFLOP2 ANOP
+&J       SETA      L'&OFF(&I)
+         AIF       (&J LT 1 OR &J GT 16).MNOTE7
+&B(&J)   SETB      (1)
+&I       SETA      &I-1
+         AIF       (&I GT 0).ONFLOP2
+&I       SETA      16
+.ONFREV  ANOP
+&B(&I)   SETB      (NOT &B(&I))
+&I       SETA      &I-1
+         AIF       (&I GT 0).ONFREV
+&T       SETA      &T+2
+         AGO       .SETBIT
+.KWTYPE  AIF       (K'&TYPE LT 1).RKEWT
+&T       SETA      &T+&TYPE
+         AGO       .SETBIT
+.RKEWT   ANOP
+&T       SETA      &T+3
+&LABEL   DC        CL12&Q&KEYW&Q
+         DC        AL1(&LENS,&T),AL2(&ADDR.-TAB3PARM),4X'00'
+         MEXIT
+.SETBIT  ANOP
+&I       SETA      4
+.LOOPX   ANOP
+&J       SETA      &B(&I-3)*8+&B(&I-2)*4+&B(&I-1)*2+&B(&I)+1
+&X(&I/4) SETC      '0123456789ABCDEF'(&J,1)
+&I       SETA      &I+4
+         AIF       (&I LE 48).LOOPX
+&LABEL   DC        CL12&Q&KEYW&Q
+         DC        AL1(&LENS,&T),XL6'&X(1)&X(2)&X(3)&X(4)&X(5)&X(6)&X(7X
+               )&X(8)&X(9)&X(10)&X(11)&X(12).'
+         MEXIT
+.MNOTE1  MNOTE     12,'PARM -- PARAMETER &KEYW INVALID'
+         MEXIT
+.MNOTE2  MNOTE     12,'PARM -- MIN= PARM MISSING'
+.MNOTE3  MNOTE     12,'PARM -- SUFFIX= &SUFFIX INVALID'
+         MEXIT
+.MNOTE4  MNOTE     12',PARM -- FORM= &FORM INVALID'
+         MEXIT
+.MNOTE5  MNOTE     12,'PARM -- ADDR= &ADDR INVALID'
+         MEXIT
+.MNOTE6  MNOTE     12,'PARM -- MISSING ON= AND OFF='
+         MEXIT
+.MNOTE7  MNOTE     12,'PARM -- ON/OFF PARM &J OUT OF RANGE'
+         MEXIT
+.MNOTE8  MNOTE     12,'PARM -- ALEN= &ALEN LT MIN= &MIN'
+         MEND
+./ ADD NAME=ASMGSET  0100-24030-24030-0038-00065-00065-00000-1050MAC 58
+*                  COPIED BY NAME 'ASMGSET'
+*                  THIS BLOCK OF CODING SETS THE GLOBAL SWITCHES
+         GBLA      &MAXUT      MAXIMUM NUMBER OF UTILITIES
+         GBLA      &MOVENUM    NUMBER OF BYTES MOVED AT ONE TIME
+         GBLA      &MAXMAC      MAXIMUM NUMBER OF MACROS IN SYSLIB DIR
+         GBLA      &UT1BUFF,&UT3BUFF,&UTBUFF
+         GBLA      &WORK
+*.* DAN SKOMSKY 09/22/2007 USE EQUATE TO DEFINE SEQUENCE LEN  DS092207
+         GBLA      &UPSEQLN    USED IN ASMGUP, LENGTH OF SEQ  DS092207
+         GBLB      &DEBUG,&NOTBUG,&STAT,&NOTSTAT
+         GBLB      &HRDCOPY    TO PRODUCE A HARD COPY WITH UPDATE
+         GBLB      &LINKCHK    CHECK CORE MANAGEMENT LINKED LISTS
+         GBLB      &SERUSE     GENERATE SERIALLY REUSABLE CODE
+         GBLB      &SYSGO      SET 1 TO TRY SYSGO IF SYSLIN WON'T OPEN
+         GBLB      &SYM370     SET TO 1 FOR SYSTEM 370 INSTS
+         GBLB      &RPQ67      SET TO 1 FOR MODEL 67 RPQ INSTS
+         SPACE     2
+*        &MAXUT USED IN ASMGBUFF ONLY
+&MAXUT   SETA      3                   MAXIMUM NUMBER OF UTILITIES
+         SPACE
+*        &MOVENUM USED IN ASMGBUFF ONLY
+&MOVENUM SETA      4*14*10             NUMBER OF BYTES MOVED AT A SHOT
+*                    IN MOVE ROUTINE.  MUST BE A MULTIPLE OF 14*4.
+         SPACE
+*        &LINKCHK USED ONLY IN ASMGBUFF
+&LINKCHK SETB      0                   DEBUG SETTING = 1.
+         SPACE
+*        &HRDCOPY USED ONLY IN ASMGUP
+&HRDCOPY SETB      1                   SET TO 1 FOR HARD SYSPUNCH COPY
+         SPACE
+*        &SERUSE USED IN ASMGBUFF ONLY
+&SERUSE  SETB      0                   =0 SAVES A BIT OF CORE
+         SPACE
+*        &MAXMAC USED IN ASMGF1 ONLY
+&MAXMAC  SETA      1000                DEFAULT NUMBER OF IN CORE MACROS
+         SPACE
+*        &DEBUG AND &STAT USED IN MANY ROUTINES INDEPENDENTLY
+&DEBUG   SETB      0                   SET 1 FOR DEBUG VERSION
+&STAT    SETB      0                   SET 1 FOR STATISTICS VERSION
+&NOTBUG  SETB      ( NOT &DEBUG)
+&NOTSTAT SETB      ( NOT &STAT)
+         SPACE
+*        &SYSGO USED IN ASMGF1 ONLY
+&SYSGO   SETB      1                   TRY SYSGO IF SYSLIN FAILS
+         SPACE
+*        &UT1BUFF, &UT3BUFF, &UTBUFF USED IN ASMGF3 ONLY
+&UT1BUFF SETA      2                   NUMBER OF UT1 BUFFERS, MIN=2
+&UT3BUFF SETA      1                   NUMBER OF UT3 BUFFERS, MIN=1
+&UTBUFF  SETA      &UT1BUFF+&UT3BUFF   TOTAL INPUT BUFFERS
+         SPACE
+*        &WORK USED IN ASMGBUFF AND ASMGF3 ONLY
+         SPACE
+*
+*.* DAN SKOMSKY 09/22/2007 USE EQUATE TO DEFINE SEQUENCE LEN  DS092207
+&UPSEQLN SETA      6           USED IN ASMGUP, LENGTH OF SEQ  DS092207
+*
+*
+         SPACE     1
+*        &SYM370 USED IN ASMGF7X AND ASMGF8M
+&SYM370  SETB      1                   INCLUDE 370 INSTRUCTIONS
+         SPACE     1
+*        &RPQ67 USED IN ASMGF7X AND ASMGF8M
+&RPQ67   SETB      0                   DON'T INCLUDE MOD 67 INSTS
+         SPACE     1
+*                  END OF COPIED CODE
+./ ADD NAME=BALR0    0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BALR0     &R
+&L       BALR      &R,0
+         MEND
+./ ADD NAME=BCTR0    0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BCTR0     &R
+&L       BCTR      &R,0
+         MEND
+./ ADD NAME=BER      0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BER       &R
+&L       BCR       8,&R            BRANCH EQUAL REGISTER
+         MEND
+./ ADD NAME=BLR      0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BLR       &R
+&L       BCR       4,&R            BRANCH LOW REGISTER
+         MEND
+./ ADD NAME=BN       0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BN        &A
+&L       BC        4,&A            BRANCH NEGATIVE
+         MEND
+./ ADD NAME=BNER     0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BNER      &R
+&L       BCR       7,&R            BRANCH NOT EQUAL REGISTER
+         MEND
+./ ADD NAME=BNLC     0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BNLC      &S
+&L       BC        12,&S           BRANCH NOT LOGICAL CARRY
+         MEND
+./ ADD NAME=BNLR     0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BNLR      &R
+&L       BCR       11,&R           BRANCH NOT LOW REGISTER
+         MEND
+./ ADD NAME=BNZR     0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BNZR      &R
+&L       BCR       7,&R            BRANCH NOT ZERO REGISTER
+         MEND
+./ ADD NAME=BZR      0100-24030-24030-0038-00004-00004-00000-1050MAC 58
+         MACRO
+&L       BZR       &R
+&L       BCR       8,&R            BRANCH ZERO REGISTER
+         MEND
+./ ADD NAME=CBE      0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBE       &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BE        &B              BRANCH EQUAL
+         MEND
+./ ADD NAME=CBH      0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBH       &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BH        &B              BRANCH HIGH
+         MEND
+./ ADD NAME=CBL      0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBL       &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BL        &B              BRANCH LOW
+         MEND
+./ ADD NAME=CBLR     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBLR      &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BLR       &B              BRANCH LOW REGISTER
+         MEND
+./ ADD NAME=CBNE     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBNE      &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BNE       &B              BRANCH NOT EQUAL
+         MEND
+./ ADD NAME=CBNH     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBNH      &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BNH       &B              BRANCH NOT HIGH
+         MEND
+./ ADD NAME=CBNL     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBNL      &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BNL       &B              BRANCH NOT LOW
+         MEND
+./ ADD NAME=CBNLR    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CBNLR     &R,&S,&B
+&L       C         &R,&S           COMPARE AND
+         BNLR      &B              BRANCH NOT LOW REGISTER
+         MEND
+./ ADD NAME=CLBL     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CLBL      &R,&S,&B
+&L       CL        &R,&S           COMPARE LOGICAL AND
+         BL        &B              BRANCH LOW
+         MEND
+./ ADD NAME=CLBNL    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CLBNL     &R,&S,&B
+&L       CL        &R,&S           COMPARE LOGICAL AND
+         BNL       &B              BRANCH NOT LOW
+         MEND
+./ ADD NAME=COMMENCE 0100-24030-24030-0038-00025-00025-00000-1050MAC 58
+         MACRO
+&LABEL   COMMENCE  &EOF=
+&LABEL   STM       14,12,12(13)        SAVE CALLER'S REGISTERS
+         BALR      12,0                ESTABLISH THE BASE
+         USING     *,12                AND TELL THE ASSEMBLER
+         LR        15,13               REMEMBER CALLER'S SAVE AREA
+         LA        13,ZZZZSAVE         WHAT IS MY SAVE AREA
+         ST        13,8(15)            TELL THE CALLER
+         ST        15,ZZZZSAVE+4       SAVE CALLER'S SAVE AREA
+         ST        1,ZZZZSAVE          SAVE POINTER TO ASMG DCB LIST
+         AIF       (K'&EOF EQ 0).NOEOF WAS EOF SPECIFIED .Q
+         L         1,16(0,1)           POINT TO SYSIN DCB
+         MVC       33(3,1),=AL3(&EOF)  MODIFY THE EODAD
+.NOEOF   ANOP
+         LA        1,50                50 LINES PER PAGE FOR USER
+         ST        1,ZZZLINES          AND REMEMBER IT
+         B         ZZAROUND            BRANCH AROUND DATA
+ZZZDUMMY DS        D                   DUMMY CONVERT AREA
+ZZZZTEMP DS        4F                  TEMPORARY SAVE AREA
+ZZZZSAVE DS        18F                 MY SAVE AREA
+ZZZLINES DS        F                   LINES PER USER OUTPUT PAGE
+ZZZINPUT DS        CL80                CARD INPUT AREA
+ZZOUTPUT DC        CL133' '            PRINTER OUTPUT AREA
+ZZAROUND DS        0H
+         MEND
+./ ADD NAME=COMMON   0100-24030-24030-0038-00833-00833-00000-1050MAC 58
+         MACRO
+         COMMON    &PHASE=
+***********************************************************************
+*        THE FOLLOWING DESCRIBES THE COMMON AREA
+*        SET UP BY F1 AND USED BY F2 AND F2A.
+*
+         AIF       ('&PHASE' NE 'ASMGF1').TRYF2
+COMMON   CSECT
+*        THE PERMANENT HASH TABLE 'PHASHT' AND CONSTANTS 'PNDX' AND
+*        'ENDOPC' ARE SET FROM DATA IN THE DYNAMICALLY LOADED
+*        ASMGISXX MODULE.
+*
+         AGO       .COMSTRT
+.TRYF2   AIF       ('&PHASE' NE 'ASMGF2').TRYF2A
+COMMON   CSECT
+         AGO       .COMSTRT
+.TRYF2A  ANOP
+         AIF       ('&PHASE' NE 'ASMGF2A').PHERROR
+COMMON   DSECT
+         AGO       .COMSTRT
+.PHERROR MNOTE     16,'COMMON  --  PHASE &PHASE NOT RECOGNIZED.'
+         MEXIT
+.COMSTRT ANOP
+*
+*        CONSTANTS FROM HERE TO 'COMEND' ARE INITIALIZED BY PHASE F1
+*        AND USED BY PHASES F1-F2.  REGISTER CM WILL POINT TO COMMON.
+*
+         DC    18F'0' .                O/S SAVE AREA
+PATCH    DC    10S(*)                  PATCH AREA
+*
+*        START OF F1/F2 SHARED COMMON AREA
+*
+F1F2STRT DS        0H
+GDP      DC    A(0)                     BEGINNING OF DICTIONARY
+DEND     DC    A(0)                     END OF DICTIONARY
+SSEG     DC    A(0)                     UT1 BLOCKSIZE
+*
+*
+RETURN   DC    F'0'                     RETURN ADDR TO PHASE 'ASM'
+*
+*
+*
+ADCBLB   DC        A(0)                ADDRESS OF SYSLIB DCB
+ADCBIN   DC        A(0)                ADDRESS OF SYSIN DCB
+*
+INPLEN   DC        F'0'                 UT3 BLOCKSIZE
+OBSIZ    DC        F'0'                 SIZE OF OUTPUT 1 AREA
+BUFFENT  DC        A(0)                ADDRESS OF BUFFERING ROUTINE
+ADLIST1  DC        A(0)                ADDRESS OF LIST1 IN ASM
+*
+ASMSAVE  DC        F'0'                ADDRESS OF SAVE AREA IN ASM
+*
+*        STORAGE AREAS USED BY THE PARM SCAN ROUTINE
+*
+TAB3PARM DC        0F'0'               DIGIT PARM TABLE
+TAB3DEF  EQU       0                        VALUE OF PARM, DEFAULT
+TAB3MIN  EQU       TAB3DEF+4                MINIMUM VALUE ACCEPTABLE
+TAB3MAX  EQU       TAB3MIN+4                MAXIMUM VALUE ACCEPTABLE
+*
+EXTMWD   DC        A(5,1,9999)         EXECUTION TIME IN SECONDS  V7A32
+LCTBYT   DC        A(55,0,254)         DEFAULT LINE COUNT
+UTBUFF   DC        A(3,0,3)            UTBUFF= VALUE
+LSETCBYT DC        A(8,1,255)          LSETC= VALUE
+ISBIN    DC        A(1,0,99)           INSTSET IN BINARY
+SPACEPOS DC        A(0-1,MINIMUM,0-1)  SPACE=VALUE
+SPACENEG DC        A(*-*,8,0-1)        SPACE=MAX- VALUE
+COLCOUNT DC        A(1,0,3)            DEFAULT COL= VALUE
+UPCOND   DC        A(12,1,20)          DEFAULT MAX UPDATE CONDITION
+CALIGN   DC        A(0,0,255)          CALIGN= VALUE
+*
+PARBYT0  DC        AL1(0)         *PARBYT0
+*                  BIT                 ON             OFF
+*        EQU       X'80'               RESERVED       --
+*        EQU       X'40'               RESERVED       --
+*        EQU       X'20'               RESERVED       --
+*        EQU       X'10'               RESERVED       --
+*        EQU       X'08'               RESERVED       --
+*        EQU       X'04'               RESERVED       --
+*        EQU       X'02'               RESERVED       --
+*        EQU       X'01'               RESERVED       --
+*
+PARBYT1  DC        AL1(EXTEN+ALGN)          *PARBYT1
+*                  BIT                 ON             OFF
+FUPLIST  EQU       X'80'               FULLUPLIST     UPLIST/NOUPLIST
+DOS      EQU       X'40'               DOS            OS
+ESD      EQU       X'20'               ESD            NOESD
+BATCH    EQU       X'10'               BATCH          NOBATCH
+FLIST    EQU       X'08'               FULLLIST       LIST/NOLIST
+EXTEN    EQU       X'04'               EXTEN          NOEXTEN
+FXREF    EQU       X'02'               FULLXREF       XREF/NOXREF
+ALGN     EQU       X'01'               ALGN           NOALGN
+*
+PARBYT   DC        AL1(LOAD+LIST+UPLIST+XREF)  *PARBYT
+*                  BIT                 ON             OFF
+DECK     EQU       X'80'               DECK           NODECK
+LOAD     EQU       X'40'               LOAD           NOLOAD
+RENT     EQU       X'20'               RENT           NORENT
+LIST     EQU       X'10'               LIST/FULLLIST  NOLIST
+RLD      EQU       X'08'               RLD            NORLD
+UPLIST   EQU       X'04'               UPLIST/FUPLIST NOUPLIST
+XREF     EQU       X'02'               XREF/FULLXREF  NOXREF
+TEST     EQU       X'01'               TEST           NOTEST
+*
+PARBYT2  DC        AL1(LREF+NUM+STMT+SEQPARM)  *PARBYT2           V7A43
+*                  BIT                 ON             OFF
+LREF     EQU       X'80'               LREF           NOLREF
+UPDATE   EQU       X'40'               UPDATE         NOUPDATE
+EXECUTE  EQU       X'20'               EXECUTE        NOEXECUTE
+SPACEM   EQU       X'10'               SPACE=MAX      SPACE=N/=MAX-N
+TERM     EQU       X'08'               TERM           NOTERM
+NUM      EQU       X'04'               NUM            NONUM
+STMT     EQU       X'02'               STMT           NOSTMT
+SEQPARM  EQU       X'01'               SEQ            NOSEQ       V7A43
+*
+PARBYT3  DC        AL1(UMAP+PRT+YFLAG)      *PARBYT3              V7A44
+*                  BIT                 ON             OFF
+UMAP     EQU       X'80'               UMAP           NOUMAP
+CMS      EQU       X'40'               CMS            NOCMS
+XREFFS   EQU       X'20'               XREF(SHORT)    XREF(FULL)
+PRT      EQU       X'10'               PRINT          NOPRINT
+YFLAG    EQU       X'08'               YFLAG          NOYFLAG     V7A44
+*        EQU       X'04'               RESERVED       --
+*        EQU       X'02'               RESERVED       --
+UNUSED   EQU       X'01'               UNUSED         --
+*
+PARBYT4  DC        AL1(0)                   *PARBYT4
+*                  BIT                 ON             OFF
+*        EQU       X'80'               RESERVED       --
+*        EQU       X'40'               RESERVED       --
+*        EQU       X'20'               RESERVED       --
+*        EQU       X'10'               RESERVED       --
+*        EQU       X'08'               RESERVED       --
+*        EQU       X'04'               RESERVED       --
+*        EQU       X'02'               RESERVED       --
+*        EQU       X'01'               RESERVED       --
+         SPACE     2
+         DC        0D'0'
+NPTL     EQU       3                      NPTL = NOTE/POINT ENTRY LNTH
+PASHL    EQU       64                  NUMBER OF PERM HASH TBL ENTRIES
+PASHL1   EQU       2*PASHL-2           DEFINES EXPR FOR 8K TAPE ASSEM
+TASHL    EQU       128                 NUMBER OF TRANS HASH TBL ENTRIES
+PHASHT   DC        (PASHL)H'0'          PERM (GLOBAL) HASH TABLE
+*                                         (2 BYTES PER ENTRY)
+THASHT   DC        (TASHL)AL3(0)        TRANSIENT (LOCAL) HASH TABLE
+*
+         DC        0D'0'
+BWBUF1   DC    A(0)
+BWBUF2   DC    A(0)
+BWBLKS   DC        0F'0'                FILE BLOCK ORIGIN
+*        UT1 FILE BLOCK
+         DC    A(0)           BWBUF****POINTER TO BUFFER  (FROM PH 1)
+         DC    AL2(0)         BWBFSZ****BUFFER LENGTH      (FROM PH 1)
+         DC        H'0'       BWRLTH    LENGTH OF LOGICAL RECORD
+         DC        F'0'       BWFNOT    NOTE POINT
+         DC        H'5'       BWNDEX    CURRENT BUFFER POINTER
+         DC        2X'00'              TO MAKE 1ST BLOCK 16 LONG
+*        UT3 FILE BLOCK
+         DC    A(0)           BWBUFF****
+         DC    AL2(0)         BWBFSZ****
+         DC        H'0'       BWRLTH
+         DC        F'0'       BWFNOT
+         DC        H'5'       BWNDEX
+*        FOLLOWING ARE REL LOCATIONS WITHIN THE FILE BLOCKS 'BWBLKS'
+BWBUFF   EQU       0
+BWBFSZ   EQU       4
+BWRLTH   EQU       6
+BWFNOT   EQU       8
+BWNDEX   EQU       12
+*
+HAFSZ    EQU       512                 HALF BLOCKSIZE
+BLKSZ    EQU       HAFSZ*2
+DCFILE   EQU       4                   DICT FILE NO. (SYSUT2)
+*
+LBDECBAD DC    2A(0)                    ADDRS OF TWO SYSLIB DECB'S
+LBRDECB  EQU   0                        EVENT CONTROL BLOCK
+LBRDTYPE EQU   LBRDECB+4                TYPE FIELD
+LBRDLEN  EQU   LBRDTYPE+2               LENGTH
+LBDCBAD  EQU   LBRDLEN+2                DCB ADDRESS
+LBAREAAD EQU   LBDCBAD+4                AREA ADDRESS
+LBRECPW  EQU   LBAREAAD+4               RECORD POINTER WORD
+*        DECB SUFFIX
+LBLIBNOT EQU   LBRECPW+4                NOTED LIBRARY FDAD
+LBLIBNTA EQU   LBLIBNOT+8               LIBRARY BUFFER RECORD OFFSET
+LBLIBEOB EQU   LBLIBNTA+4               LIBRARY BUFFER EOB OFFSET
+LBRDSW   EQU   LBLIBEOB+4               READ SWITCH
+LBRDRS   EQU   X'02'                         PROCESSING STARTED
+LBRDOT   EQU   X'80'                         OUTSTANDING READS
+LBEND    EQU   LBRDSW+8                 END OF DECB/SUFFIX
+*
+LIBRDSW  DC    X'00'                    SYSLIB READ SWITCH
+ERRSW1   DC        X'00'               ERROR SWITCH
+ERRBDPM  EQU       X'01'               BAD ENTRY IN PARM FIELD
+ERRLPRN  EQU       X'02'               MATCHED LEFT PARENS SWITCH
+*
+ENDOPC   DC        A(*-*)               END OF OPCODES (REL)
+PNDX     DC        A(*-*)               PERM AREA ALLOCATION INDEX.
+HISTRY   DC        3F'0'               HOLDS CRA, PPA, THLDA
+F1F2END  DS        0H
+*
+*        END OF F1/F2 SHARED COMMON AREA
+*
+F1       DC    F'1'
+H0       EQU   F1
+H1       EQU   F1+2
+ONEH     EQU       H1
+F2       DC    F'2'
+H2       EQU   F2+2
+F3       DC    F'3'
+H3       EQU   F3+2
+F4       DC    F'4'
+H4       EQU   F4+2
+F5       DC    F'5'
+H5       EQU   F5+2
+F6       DC    F'6'
+H6       EQU   F6+2
+F7       DC    F'7'
+H7       EQU   F7+2
+F8       DC    F'8'
+H8       EQU   F8+2
+H9       DC    H'9'
+H10      DC    H'10'
+H11      DC    H'11'
+H12      DC    H'12'
+F15      DC    F'15'
+F31      DC    F'31'
+H40      DC    H'40'
+H80      DC    H'80'
+MH187    DC    H'-187'
+H200     DC    H'200'
+F255     DC    F'255'
+H255     EQU   F255+2
+H256     DC    H'256'
+H32767   DC    H'32767'
+F65535   DC    F'65535'
+MH1      EQU   F65535+2
+*                                       *******************************
+*                                       * TRANSLATE AND TEST TABLE    *
+*                                       *******************************
+PNCTAB   DC    51X'00'                  (MUST BE ALIGNED TO FULL WORD)
+*        FIRST 39 ENTRIES ARE NORMALLY ZERO, CORRESPONDING TO VALID
+*        ASSEMBLER ALPHA AND NUMERIC CHARACTERS. NEXT 12 ENTRIES
+*        CORRESPOND TO THE SPECIAL CHARACTERS SIGNIFICANT TO THE
+*        ASSEMBLER, AND THIS PART OF THE TABLE MUST BE SET UP BY THE
+*        USER, DEPENDING ON WHAT HE IS SCANNING FOR.
+*        A NON-ASSEMBLER CHARACTER WILL SPILL OVER INTO THE TRANSLATE
+*        TABLE WHICH FOLLOWS, RETURNING A NON-ZERO VALUE FROM THERE.
+*                                       *******************************
+*                                       * TRANSLATE TABLE             *
+*                                       *******************************
+*        THE TRANSLATE TABLE PERMITS TRANSLATION FROM EXTERNAL CODE TO
+*        INTERNAL CODE AND VICE VERSA. THE POSITION CORRESPONDING TO
+*        THE EXTERNAL CODE FOR A SYMBOL CONTAINS ITS INTERNAL CODE,
+*        AND THE POSITION CORRESPONDING TO ITS INTERNAL CODE CONTAINS
+*        ITS EXTERNAL CODE.
+*        EXAMPLE- THE EXTERNAL CODE FOR 'A' IS HEX C1 (DECIMAL 193),
+*        AND THE INTERNAL CODE IS HEX 0A (DECIMAL 10). THE 193-D TABLE
+*        ENTRY IS HEX 0A, AND THE 10-TH TABLE ENTRY IS HEX C1
+*        TABLE STARTS WITH THE 0-TH ENTRY
+*
+TRSLTB   DC    X'F0F1F2F3F4F5F6F7F8F9C1C2C3C4C5C6'
+         DC    X'C7C8C9D1D2D3D4D5D6D7D8D9E2E3E4E5'
+         DC    X'E6E7E8E95B7B7C4E605C616B7E504B4D'
+         DC    X'5D7D40333435363738393A3B3C3D3E3F'
+         DC    X'324142434445464748494A2E4C2F274F'
+         DC    X'2D5152535455565758595A2429305E5F'
+         DC    X'282A62636465666768696A2B6C6D6E6F'
+         DC    X'707172737475767778797A2526312C7F'
+         DC    X'808182838485868788898A8B8C8D8E8F'
+         DC    X'909192939495969798999A9B9C9D9E9F'
+         DC    X'A0A1A2A3A4A5A6A7A8A9AAABACADAEAF'
+         DC    X'B0B1B2B3B4B5B6B7B8B9BABBBCBDBEBF'
+         DC    X'C00A0B0C0D0E0F101112CACBCCCDCECF'
+         DC    X'D0131415161718191A1BDADBDCDDDEDF'
+         DC    X'E0E11C1D1E1F20212223EAEBECEDEEEF'
+FINDEC   DC    X'00010203040506070809FAFBFCFDFEFF'
+FINBLANK EQU       FINDEC-X'32'        TRANSLATE TABLE FOR BLANKS
+         DC        (256-X'32'-L'FINDEC)X'FF'  MORE NON ZEROS NEEDED
+         AIF       ('&PHASE' EQ 'ASMGF1').COMONF1
+         EJECT
+*
+*        BEGINNING OF F2/F2A COMMON WORK AREA
+*
+*        NAMING CONVENTION FOR TRANSLATED CHARACTER REPRESENTATION.
+*             ALPHABETICS STAND FOR THEMSELVES
+*             NUMERICS HAVE THE LETTER 'N' PREFIXED TO THE DIGIT
+*             SPECIAL CHARACTERS ARE NAMED MNEMONICALLY
+*
+N0       EQU       X'00'
+N1       EQU       X'01'
+N2       EQU       X'02'
+N3       EQU       X'03'
+N4       EQU       X'04'
+N5       EQU       X'05'
+N6       EQU       X'06'
+N7       EQU       X'07'
+N8       EQU       X'08'
+N9       EQU       X'09'
+A        EQU       X'0A'
+B        EQU       X'0B'
+C        EQU       X'0C'
+D        EQU       X'0D'
+E        EQU       X'0E'
+F        EQU       X'0F'
+G        EQU       X'10'
+H        EQU       X'11'
+I        EQU       X'12'
+J        EQU       X'13'
+K        EQU       X'14'
+L        EQU       X'15'
+M        EQU       X'16'
+N        EQU       X'17'
+O        EQU       X'18'
+P        EQU       X'19'
+Q        EQU       X'1A'
+R        EQU       X'1B'
+S        EQU       X'1C'
+T        EQU       X'1D'
+U        EQU       X'1E'
+V        EQU       X'1F'
+W        EQU       X'20'
+X        EQU       X'21'
+Y        EQU       X'22'
+Z        EQU       X'23'
+$        EQU       X'24'
+#        EQU       X'25'
+@        EQU       X'26'
+PLUS     EQU       X'27'
+MINUS    EQU       X'28'
+STAR     EQU       X'29'
+SLASH    EQU       X'2A'
+COMMA    EQU       X'2B'
+EQUALS   EQU       X'2C'
+AMPSND   EQU       X'2D'
+DOT      EQU       X'2E'
+LPAREN   EQU       X'2F'
+RPAREN   EQU       X'30'
+QUOTE    EQU       X'31'
+BLANK    EQU       X'32'
+HCHAR    EQU       X'32'               LAST INTERNAL CHARACTER
+*
+MINIMUM  EQU       0                   DUMMY VALUE FOR F2/F2A SPACEPOS
+         EJECT
+TEMP     DC    D'0'
+ECOL     DC    A(71)                    END COLUMN                 (71)
+SAVOUT   DC       2F'0'                 OUTPUT POINTER STORAGE
+SAVEIN   EQU   SAVOUT+4                 INPUT POINTER STORAGE
+WRTEXT   DC       F'0'                  FILE IDENTIFICATION
+*        0 - UTILITY 1
+*        4 - UTILITY 2
+*        8 - UTILITY 3
+*        12 - SYSIN
+*        16 - COPY
+PARA2    DC        A(OUTPUT)           ADDRESS OF OUTPUT AREA
+WRTLNG   DC        F'0'                LENGTH OF OUTPUT RECORD
+LSTFLG   DC        F'0'                 OPERAND LIST WORD STORAGE
+DCAREA   DC        5F'0'                BUILD AREA DICTIONARY REF/DEF
+LTTLA    EQU   DCAREA+18                LITTLE A POINTER STORAGE
+SAVPTR   DC        F'0'                 INPUT POINTER STORAGE
+*
+* NEXT 10 CONSTANTS USED IN MULTIPLE LOADS IN GETSRC ROUTINE.
+*
+* NUMBERS IN () ARE STANDARD VALUES , UNLESS ALTERED BY ICTL CARD.
+*
+SEQLEN   DC        F'7'                 SEQ FIELD LENGTH MINUS 1    (7)
+SEQCL1   DC        F'73'                SEQUENCE FIELD START       (73)
+ADJCON   DC        A(SRCBUF)           SOURCE BUFFER ADDR
+CNTCL1   DC        F'72'                CONTINUATION CHAR COL      (72)
+BEGCOL   DC        F'1'                 BEGIN COLUMN                (1)
+SRCLEN   DC        F'70'                END COL MINUS BEGIN COL    (70)
+BEGOUT   DC        A(INPUTBUF-1)       INPUT BUFFER LOC MINUS ONE
+BEGCNT   DC        F'16'                CONTINUE COLUMN            (16)
+CONLEN   DC        F'55'                END COL MINUS CONTINUE COL (55)
+ENDCOL   DC        A(INPUTBUF+71)      NEXT AVAIL LOC IN INPUT BUFFER
+*                                         MINUS ONE
+DENTRY   DC        A(DCAREA)           DCAREA LOCATION AND FLAG BYTE
+PARA1    DC        A(*-*)               LOCATION OF SOURCE BUFFER
+LNGTHS   DC        H'84'                LENGTH OF SOURCE BUFFER    (84)
+NAMBYT   DC        AL1(*-*)             NAME SUMMARY BYTE
+OPBYTE   DC        AL1(*-*)             OPERATION SUMMARY BYTE
+NMBFLG   EQU       X'04'               NO OF FLAG BYTES IN REC FORMAT
+NBFLM1   EQU       X'03'               SAME THING LESS ONE
+PARA     DC        A(SRCBUF+NMBFLG)    LOCATION OF READ AREA
+ABT8TY   DC        H'80'                LENGTH OF READ AREA        (80)
+ADDCNT   DC        AL1(*-*)             NUMBER OF LINES IN STATEMENT
+DERR     DC        AL1(*-*)             DICTIONARY ERROR BYTE
+         DC        0F'0'
+TYPRED   DC        H'12'                UNIT TO BE READ (12 = SYSIN)
+WRTUNT   DC        H'8'                 UNIT TO BE WRITTEN
+SWTCH1   DC        0F'0'                DRIVER BITS
+         DC        X'08',7X'00'
+*  BIT 0       SEQUENCE CHECK
+*      1       WITHIN MACRO DEFN
+*      2       RETURN TO MISCAN
+*      3       LAST STATEMENT WAS 'MACRO'- EXPECT PROTOTYPE
+*      4       =1 UNLESS ICTL SAYS NO CONTINUATIONS ALLOWED
+*      5
+*      6       END CARD
+*      7       'ENDOPR' EXIT CONTROL-
+*              1 = RETURN TO CALLER (END OF OPERAND)
+*              0 = EXIT TO DRIVER (END OF STATEMENT)
+TYPATR   EQU   SWTCH1+1                 TYPE ATTRIBUTE
+SQNOTE   EQU   TYPATR                   NOTE/PT INFORMATION
+LNGTAT   EQU   TYPATR+1                 LENGTH ATTRIBUTE
+SCLATR   EQU   LNGTAT+2                 SCALE ATTRIBUTE
+SWTCH3   EQU   SCLATR+2                 ENTRY BITS
+*  BIT 0       GTSRC1,GTSRC2,GTSRC4,GTSRC5  GETSRC ENTRY POINTS
+*      1       GTSRC1,GTSRC2,GTSRC4     GETSRC ENTRY POINTS
+*      2       GTSRC2,GTSRC4            GETSRC ENTRY POINTS
+*      3       GTSRC4                   GETSRC ENTRY POINTS
+*      4       GTSRC4                   GETSRC ENTRY POINTS
+*              BITS 0-4 = 0 FOR GTSRC ENTRY
+*      5       SET IF - SCANNING MNOTE, PUNCH OR TITLE STATEMENT
+*      6       UNUSED
+*      7       ERROR FOUND
+SWTCH4   EQU   SWTCH3+1
+*  BIT 0       COMMENTS CONTINUED
+*      1       NEXT CARD IS A CONTINUATION OF THIS CARD
+*      2       THIS CARD IS A CONTINUATION OF THE PREVIOUS CARD
+*      3       LAST CARD
+*      4       I VALUE
+*      5       J VALUE
+*      6       MACRO INSTRUCTION OR PROTOTYPE BIT
+*      7       BUFFERING INDICATOR
+         DC        0F'0'
+SWTCH5   DC        X'81'
+*  BIT 0       SET IF - PROCESSING PROGRAMMER MACRO.
+*      1              - IN OPEN CODE.
+*      2              - IN SYSTEM MACRO DEFINITION.
+*      3              - GBL NOT ALLOWABLE.
+*      4              - LCL NOT ALLOWABLE.
+*      5              - SKIPPING TO MEND.
+*      6              - SKIPPING TO END.
+*      7              - EXTEN PARAMETER.
+SWTCH6   DC        X'00'
+*  BIT 0       SET IF - WITHIN COPY CODE.
+*      1              - 'MACRO' OP EXPECTED.
+*      2              -
+*      3              - BWRITE ENTRY.
+*      4              - FIRST CARD.
+*      5              - SUPPRESS DICTIONARY ENTRIES FROM OPNDL LIST
+*      6              -   DICTIONARY MUST BE SUBSET
+*      7              - NORMAL COMMENT WITHIN A MACRO.
+SWTCH7   DC        X'00'
+*  BIT 0 (80)  SET IF PROCESSING SUBLIST.
+*      1 (40)  SET IF CONCATENATION IN OPERAND.
+*      2 (20)  SET IF PROCESSING KEYWORD PARAMETER.
+*      3 (10)
+*      4 (08)
+*      5 (04)  SET IF SEQ ERROR.
+*      6 (02)  SET IF END CARD IS GENERATED.
+*      7 (01)  SET IF IN COPY CODE.
+SWTCH8   DC        X'00'
+*  BIT 0 (80)  SET IF OPSYN INVALID.
+*      1 (40)  SET IF ERROR 78 NEEDED BEFORE OTHER ERRORS.
+*      2 (20)  SET IF SKIPPING COPY BACK TO SYSIN LEVEL           V7A28
+*      3 (10)
+*      4 (08)
+*      5 (04)
+*      6 (02)
+*      7 (01)
+*
+*
+IOPNDX   DC        F'0'                 SAVE SLOT FOR OPNDX
+DEFENT   EQU   IOPNDX+1                 TYPE OF ENTRY FLAG BYTE
+GCALL    EQU   DEFENT+1                 GSCAN CALLING ARGUMENT
+OPNDX    EQU   GCALL+1                  POINTER TO OPNDL LIST
+SRCFLG   DC        0F'0'                HEADER BYTES FOR SOURCE RECORD
+SAMBYT   DC        X'08'                  TYPE ID (SET TO 08 IN F1)
+SRCRLI   DC        FL2'84'                REC LNTH (=84 IN F1)
+SRCFG1   DC        X'00'                  FLAGA BYTE
+*  BIT(S) 0        UNUSED (IN EDITING PHASES)
+*         1,2,3    000 PRINT AS IS
+*                  001 ERROR
+*                  010 CONSTRUCT FOR PRINT
+*                  011 CONSTRUCT FOR PRINT IF GENERATED
+*                  100 PROCESS ONLY
+*                  101 ILLEGAL ****
+*                  110 PROCESS AND CONSTRUCT FOR PRINT
+*                  111 PROCESS AND CONSTRUCT FOR PRINT IF GENERATED
+*         4        UNUSED (IN EDITING PHASES)
+*         5        0   NO ERROR RECORD FOLLOWS
+*                  1   ERROR RECORD FOLLOWS
+*         6        0   NOT A CONTINUATION CARD
+*                  1   A CONTINUATION CARD
+*         7        UNUSED (IN EDITING PHASES)
+*                                       *******************************
+*                                       * AREA DEFINITIONS            *
+*                                       *******************************
+DUMMY    DC        H'0'                 ALIGNMENT AREA
+EQUTYPE  DC        X'00'                SAVE AREA FOR EXT EQU EVAL
+ENDBUF   DC        A(INPUTBUF+319)
+INPUTE   EQU   ENDBUF
+*
+*        'GETSRC' ROUTINE READS A CARD INTO SOURCE BUFFER 'SRCBUF' AND
+*        BUILDS A STATEMENT IN INPUT BUFFER 'INPUTBUF'.
+OBUFS    DC    A(OUTPUT) .             POINTER TO OUTPUT BUFFER
+INPUT    DC    A(INPUTBUF) .           POINTER TO BEGINNING OF INPUT
+         SPACE     2
+INPUTBUF DC        320C' '             TO HOLD UP TO 3 CONTIN CARDS
+SRCBUF   DC        22F'0'              INPUT CARD BUFFER
+OUTPUT   DC        60D'0'              EDITED TEXT OUTPUT BUFFER
+DBLWD    EQU   OUTPUT+16 .             TEMP BUFFER FOR GBL, LCL OPNDS
+SAVREG   DC        25F'0'
+SAVEM    EQU   SAVREG+64
+COPYSV   DC        10F'0'
+INFILS   DC        X'00'
+SWTCH1X  DC        X'00'
+SVNXT    DC        F'0'
+SVPTR    DC        F'0'
+MCALL    DC        H'0'
+* PARLVL = PARENTHESIS NEST LEVEL = LEFTS MINUS RIGHTS
+PARLVL   DC        F'0'
+         DC        H'0'
+GSUMRY   EQU   PARLVL+2                 GSCAN RESULT BYTE
+GSTAT    EQU   GSUMRY+1
+* BIT 0 (80) = 1 IF ODD NUMBER OF QUOTES READ
+*
+MVBYTE   EQU   GSTAT+1
+* BIT 0 (80)
+*     1 (40) = 1 IF OPERAND TREATED AS DUMMY
+*     2 (20) = 1 IF SDT (SELF-DEFINING TERM) IS DISALLOWED
+*     3 (10) = 1 IF LEFT PAREN WAS READ
+*     4 (08)
+*     5 (04)
+*     6 (02) = 1 IF QUOTE MODE (ODD NUMBER OF QUOTES READ)
+*     7 (01) = 1 IF NEW CARD READ
+TXTFLG   EQU   MVBYTE+1
+SDTEMP   DC        F'0'                 NOTE ALIGNMENT
+*AVSP- POINTS TO NEXT AVAILABLE SLOT IN RSTACK. RESET TO A(RSTACK)
+*ON EACH ENTRY TO GSCAN.
+AVSP     DC        F'0'
+SEQVAL   DC        CL40' '              LAST SEQUENCE VALUE
+*RSTACK- WORK AREA STACK FOR RECURSIVELY ENTERED SCAN ROUTINES.
+*8 BYTES/LEVEL. FORMAT IS FLLLXASS-
+*  F = FLAG BYTE (2 FORMATS)-
+*        BIT 0(128)- 1 = SETA      (SAVED FROM CURRENT MCALL INDICATOR
+*            1(64)-  1 = SETC        FOR METSCN)
+*            2(32)-  1 = COMPLEX SUPERSTATE, 0 = SIMPLE
+*        OR
+*        BIT 0(128)- 1 = SYSLIST
+*            1(64)-  1 = SUBSCRIPTED
+*            2(32)-  1 = DOUBLE SUBSCRIPT
+*  LLL = LINK REG SAVE AREA
+*  X = OPNDX SAVE BYTE
+*  A = ATTRIBUTE OPERATOR SAVE BYTE
+*  SS = STATE POINTER SAVE AREA
+RSTACK   DC        CL96' '
+*OPNDL- OPERAND POINTER LIST. 4 BYTES/ENTRY. FORMAT IS FIDO-
+*  F = FLAG BYTE.
+*     FOR VARIABLE SYMBOLS-
+*        BIT 0(128)- 0 = &SYSLIST, 1 = OTHER V.S.
+*            1(64)-  SAME
+*            2(32)-  1 = BOOLEAN (SETB) REQUIRED
+*            3(16)-  1 = SYMBOLIC PARAM REQUIRED
+*            4(8)-   1 = SUBSCRIPTED (DIMENSIONED)
+*            5-7     OPERAND LENGTH - 1
+*     FOR ORDINARY OR SEQUENCE SYMBOLS-
+*        BIT 0(128)- 1 = DICTIONARY ENTRY REQUIRED
+*            1(64)-
+*            2(32)-  1 = SEQ SYM, 0 = O.S.
+*            3(16)-
+*            4(8)-   1 = POINT OF DEFINITION, 0 = PT OF REFERENCE
+*            5-7     OPERAND LENGTH - 1
+*  I = REL LOC OF OPERAND IN INPUT BUFFER.
+*  D = DIMENSION OR PARAMETER NO.
+*  O = REL LOC OF OPERAND IN OUTPUT BUFFER.
+OPNDL    DC        XL200'00'            (MUST BE FULL-WORD ALIGNED)
+ASTAT    DC        F'0'
+RSLTA    EQU   ASTAT+3
+AFLGS    EQU   RSLTA
+LMAX     DC        H'0'
+SMAX     DC        H'0'
+MAPTYP   DC        CL1' '
+ATYP     DC        CL1' '               RESULT  TYPE   *
+ALENG    DC        H'0'                 RESULT  LENGTH *
+ASCAL    DC        H'0'                 RESULT  SCALE  *
+RFACT    DC        CL1' '
+SFACT    DC        CL1' '
+ACMAX    DC        CL1' '
+ACALL    DC        CL1' '               CALLING SEQUENCE FOR ASCAN
+BWSAVE   DC        10F'0'               SAVE AREA FOR 'BW' ROUTINES
+SOPNDX   DC        C' '
+ERRCOD   DC        C' '                 ERROR FLAG FOR 'LEGOP' ROUTINE
+NPRIME   DC        H'0'                 SUBLIST PARAMETER COUNT
+NRKEY    DC        H'0'                 KEYWORD PARAMETER COUNT
+POSNO    DC        H'0'                 POSITIONAL PARAMETER COUNT
+POSNOMAX DC        H'240'               MAX POS PARM, 200 NOEXTEN V7A58
+POSNOINT DC        H'6'                 INITIAL DUMMY POSITIONAL PARMS
+INTPTR   DC        F'0'
+FSTINP   DC        F'0'
+SVLNR1   DC        F'0'
+INTOPT   DC        F'0'
+SVLINK   DC        F'0'
+MCD1     DC        F'0'
+SAVE2    DC        4F'0'
+LTTLAF   DC        F'0'                FULLWORD LITTLA
+FINDSAVE DC        7F'0'               SAVE AREA FOR FIND IN ASMGF2
+FINDAD   DC        A(FIND)             FIND ROUTINE ADDRESS IN ASMGF2
+ERRSAV   DC        7F'0'               SAVE FOR POINTERS AND REGS
+TMPOUT   DC        4F'0'               SAVE FOR OVERLAID OUTPUT AREA
+SVLNKR   DC        F'0'
+SVOPTR   DC        F'0'
+OPS99    DC        F'0'                SAVE LINK FOR OPSYN PROCESSOR
+TREGS    DC        5F'0'               TEMPORARY FOR SCRATCH REGISTERS
+MACNAME  DC        CL8' '              MACRO NAME BEING EDITED (INTERN)
+COPYNAME DC        CL8' '              MACRO NAME WITH COPIED CODE(INT)
+STNOTE   DC        CL8' '               STORAGE FOR STATEMENT NOTE
+         EJECT
+DUMCMNT  DC    X'08003A00292929320E1B1B181B32292929323232201112150E320E*
+               0D121D1217103215120B1B0A1B2232160A0C1B183228322929292929*
+               292929'
+SYSL     DC    X'1C221C15121C1D'       SYSLIST IN INTERNAL
+*                                                                 V7A49
+*        SYSTEM PARAMETER CONSTANTS                               V7A49
+*        FORMAT - FLAG BYTE, NAME IN INTERNAL, PARAMETER NUMBER   V7A49
+SYSNDX   DC    X'4E2D1C221C170D210000'                            V7A49
+SYSECT   DC              X'0E0C1D0001'                            V7A49
+SYSDATE  DC    X'4F2D1C221C0D0A1D0E0002'                          V7A49
+SYSTIME  DC              X'1D12160E0003'                          V7A49
+SYSSTYP  DC              X'1C1D22190004'                          V7A49
+SYSPARM  DC              X'190A1B160005'                          V7A49
+*
+ERRST    EQU   X'0D'                   ERROR STATEMENT TYPE FLAG
+WRNST    EQU   X'0D'                   WARNING STATEMENT TYPE FLAG
+*
+SNATTR   EQU       55
+DTYP     EQU       25                  SPECIAL DUMMY TYPE BYTE
+SPUT     EQU       X'FD'               PUT RAW TEST FLAG
+ENDFLD   EQU       X'F8'               END OF FIELD FLAG
+SCEXPR   EQU       X'27'               CHARACTER EXPRESSION FLAG
+HSNATR   DC        0H'0'
+         DC    AL2(SNATTR)
+TYPATI   DC    AL1(DTYP)                ASSUMED TYPE, LENGTH, SCALE FOR
+         DC    X'00000000'                NAME FIELD SYMBOLS -UNDEFINED
+PERASK   DC    AL2(DOT*256+STAR)
+OMTFLD   DC    AL1(SPUT)
+         DC    AL2(ENDFLD)
+TRMOPN   DC    AL1(SCEXPR)
+         DC    AL2(BLANK)
+         DC    AL1(ENDFLD)
+         SPACE     2
+FINIS    EQU   *
+*
+PSOPSW   DC        X'00'                SWITCH BYTE FOR SMTSEQ
+*                                       *******************************
+         EJECT
+*              ONE-BYTE TEMPORARIES AND COMMON CELLS.
+*
+DSSTRT   DC        5C' '                INITIAL FILE POSITION.        A
+*
+*              HALFWORD TEMPORARIES AND COMMON CELLS.
+*
+         DC        0D'0'
+ENTLN    DC    H'0'                     ENTRY LENGTH - CHAIN POINTER -1
+HSHVAL   DC    H'0'                     HASH VALUE - 16 BITS.
+*
+*              FULL-WORD TEMPORARIES AND COMMON CELLS.
+*
+DUSING   DC        V(ENTDCT)            BASE REGISTERS
+DCLOS1AD DC        V(DCLOS1)             FOR PHASE F2A
+LASCAN   DC        V(ASCAN)            .                          V7A54
+DCLSE    DC        V(DCLOSE)           .                          V7A54
+GETAD    DC        V(GETSRC)           .                          V7A54
+DLOOKUP  DC        V(LOOKUP)           .                          V7A54
+ADWS     DC        V(BWFORC)           .                          V7A54
+ADWS2    DC        V(BWRITE)           .                          V7A54
+VCHECK   DC        V(LIBCHK)           .                          V7A54
+VLREAD   DC        V(LIBRFND1)         .                          V7A54
+VWAIT    DC        V(LIBWAIT)          .                          V7A54
+AKLOSIT  DC        V(KLOSIT)           .                          V7A54
+VENTKWB  DC        V(ENTKWB)           .                          V7A54
+VCR      DC        F'4'                 RELATIVE VIRTUAL STORAGE PTR.
+EVENX    DC    2F'0'                    LEFT TWO BYTES ALWAYS 00.
+EVENY    DC        F'0'                 LEFT ONE BYTE ALWAYS 0.
+HSHA     DC    2F'0'                    HASHING AREA.
+TNDX     DC    F'4'                     TRANSIENT BLOCK ALLOC. INDEX.
+THRESH   DC    F'0'                     THRESHOLD POINTER.
+PHASHM   DC        A((PASHL-1)*2)       PERMANENT AREA HT HASH MASK.
+THASHM   DC        A(TASHL-1)           TRANSIENT AREA HT HASH MASK.
+TBEG     EQU       20                  TRANS LITTLE 'A' POINTER ORIGIN
+PBEG     EQU       4                   PERM  LITTLE 'A' POINTER ORIGIN
+LTLAP    DC    A(PBEG+1)
+         DC    A(PBEG)
+LTLAT    DC    A(TBEG+1)
+         DC    A(TBEG)
+BTNRP    DC    F'0'                     BIT NUMBER, PERM AREA SETB'S.
+BTNRT    DC    F'0'                     BIT NUMBER, TRANS AREA SETB'S.
+FZRO     DC    2F'0'
+MACHN    DC    F'0'                     MACRO CHAIN ORIGIN.
+IOCTL    DC    F'0'                     CORE LOCATION.
+         DC    AL2(BLKSZ)               BYTE COUNT.
+         DC    AL1(DCFILE)
+         DC    AL4(0)                   N/P ADDRESS.
+         DC        3C' '               TO MAKE LOOK LIKE FILE BLOCK
+         DC        AL2(BLKSZ)          BLOCK LENGTH WRITTEN
+         EJECT
+*
+*        COMMON AREA USED BY DICTIONARY SUBSETTING ROUTINE
+*
+ACTRV    EQU   4096            STANDARD ACTR VALUE
+ACTR     DC    A(ACTRV)        ACTR VALUE
+*        INPUT PARAMETER LIST - TRANSIENT DICTIONARIES
+TRD      DC    A(0)            TRANSIENT DICTIONARY INPUT AREA ADDRESS
+         DC    AL2(BLKSZ)      INPUT AREA SIZE
+*        OUTPUT PARAMETER LIST - SUBSETTED DICTIONARIES
+MCD      DC    A(0)            DICTIONARY SUBSETTING AREA ADDRESS
+MACNAM   DC    F'0'            STORAGE FOR ADDR OF MACRO NAME ENTRY
+MCDSZ    DC    F'0'
+ENDTRD   DC    F'0'
+NPMAIN   DC        F'1'        STORAGE FOR N/P ADDR OF OPENCODE DICT
+RECSZ    EQU   SSEG
+         SPACE     2
+*
+*        TABLE USED BY STATEMENT SEQUENCE CHECKING ROUTINE
+*
+*        SWITCH BYTES BY PSEUDO-OP FOR STATEMENT TYPE SEQUENCING
+*        BIT   0(X'80')=1  IF END PSEUDO-OP
+*              1(X'40')=1     MEND PSEUDO-OP
+*              2(X'20')=1     MACRO PSEUDO-OP
+*              3(X'10')=1     MEXIT,MNOTE,MEND PSEUDO-OPS
+*              4(X'08')=1     GBLX,LCLX PSEUDO-OPS
+*              5(X'04')=1     ILLEGAL WITHIN COPY CODE
+*              6(X'02')=1     ILLEGAL WITHIN MACRO DEFINITIONS
+*              7(X'01')=1     ALLOWED BETWEEN PROGRAMMER MACROS
+*
+*                                       INTERNAL OP CODES
+POBYTE   DC    X'08'          GBLA      0
+         DC    X'08'          GBLB      1
+         DC    X'08'          GBLC      2
+         DC    X'08'          LCLA      3
+         DC    X'08'          LCLB      4
+         DC    X'08'          LCLC      5
+         DC    X'00'          SETA      6
+         DC    X'00'          SETB      7
+         DC    X'00'          SETC      8
+         DC    X'00'          AIF       9
+         DC    X'00'          AGO       10
+         DC    X'00'          ANOP      11
+POCOPY   DC    X'01'          COPY      12     DC  X'04' IF NOEXTEN
+POMACRO  DC    X'23'          MACRO     13     DC  X'27' IF NOEXTEN
+         DC    X'10'          MNOTE     14
+         DC    X'10'          MEXIT     15
+POMEND   DC    X'50'          MEND      16     DC  X'54' IF NOEXTEN
+         DC    X'06'          ICTL      17
+         DC    X'07'          ISEQ      18
+POPRINT  DC    X'01'          PRINT     19     DC  X'03' IF NOEXTEN
+         DC    X'01'          SPACE     20
+         DC    X'01'          EJECT     21
+         DC    X'00'          PUNCH     22
+         DC    X'00'          REPRO     23
+         DC    X'01'          TITLE     24
+         DC    X'00'          ENTRY     25
+         DC    X'00'          EXTRN     26
+         DC    X'00'          START     27
+         DC    X'00'          CSECT     28
+         DC    X'00'          DSECT     29
+         DC    X'00'          COM       30
+         DC    X'00'          EQU       31
+         DC    X'00'          ORG       32
+POEND    DC    X'82'          END       33  DC  X'86' IF NOEXTEN  V7A28
+         DC    X'00'          LTORG     34
+         DC    X'00'          USING     35
+         DC    X'00'          DROP      36
+         DC    X'00'          ACTR      37
+         DC    X'00'          DC        38
+         DC    X'00'          DS        39
+         DC    X'00'          CCW       40
+         DC    X'00'          CNOP      41
+         DC    X'00'          *EXTRA*   42
+         DC    X'00'          DXD       43
+         DC    X'00'          CXD       44
+         DC    X'03'          OPSYN     45
+         DC    X'00'          WXTRN     46
+         DC    X'00'          POP       47
+         DC    X'00'          PUSH      48
+         SPACE 2
+*
+*        MACRO/COPY SAVE AREAS
+*
+CPLENGTH EQU   32                       BYTES PER COPY LEVEL
+CPDEPTH  EQU   5                        MAX COPY DEPTH, 1 IF NOEXTEN
+CPLEN    DC    A(CPLENGTH)              LENGTH OF ONE LEVEL
+CPMAX    DC    A(CPLENGTH*CPDEPTH)      MAX NESTING LEVEL
+CPCUR    DC    A(0-CPLENGTH)            CURRENT NESTING LEVEL
+CPWORK   DC    0F'0',(CPLENGTH*(CPDEPTH+1))X'00'  NESTED COPY WORK
+*
+CPLIBNOT EQU   0                        NOTED LIBRARY FDAD
+CPLIBNTA EQU   CPLIBNOT+8               LIBRARY BUFFER RECORD POINTER
+CPLIBEOB EQU   CPLIBNTA+4               LIBRARY BUFFER EOB ADDRESS
+CPCPNAME EQU   CPLIBEOB+4               LIBRARY MEMBER NAME
+CPLIBNO2 EQU   CPCPNAME+8               2ND LIBRARY BUFFER FDAD
+CPLIBEND EQU   CPLIBNO2+8               END OF ONE LEVEL WORK
+         EJECT
+         AGO       .COMEND
+.COMONF1 ANOP
+*
+*        WORK AREA FOR F1 ONLY
+*
+DWORD    DC        D'0'                DOUBLE WORD WORK AREA
+UTJFCB   DC        XL176'00'           READ UTILITY JFCB'S HERE
+IOSAVE   DC        5F'0'               SAVE AREA FOR SYSPRINT I/O
+PARMOFF  DC        A(0)                OFFSET OF A PARM ERROR
+LINE     DC        CL133' '            PRINT LINE BUFFER
+.COMEND  ANOP
+         LIST1EQU
+COMEND   DC        0D'0'               MAKE COMMON DBL WORDS LONG
+*
+         AIF       ('&PHASE' NE 'ASMGF1').ENDF2
+*        ASMGF1 PHASE MUST BE AS LARGE AS ANY SUBSEQUENT
+*        PHASE, SO ROUND UP ASMGF1 TO A LARGER FIGURE.
+*
+DUMLENF1 EQU       1024*26-(F1END-ASMGF1)-(COMEND-COMMON)         V7A16
+         DS        (DUMLENF1)X         UP TO SIZE OF ALL OTHERS
+         AGO       .MEND
+.ENDF2   ANOP
+*        ASMGF2 PHASE MUST BE AS LARGE AS ASMGF1 PHASE,
+*        SO ROUND UP ASMGF2A TO A LARGER FIGURE.                  V7A16
+*
+ELENF2   EQU       10500               ROUNDED EST F2 LENGTH      V7A16
+         AIF       ('&PHASE' EQ 'ASMGF2').ENDF2T                  V7A16
+ASMGF2A  CSECT     ,                   RESUME FORMER CSECT        V7A16
+DUMLENF2 EQU   1024*26-(F2AEND-ASMGF2A)-(COMEND-COMMON)-ELENF2    V7A16
+         DS        (DUMLENF2)X         UP SIZE OF ASMGF2A         V7A16
+FIND     EQU       *                   DUMMY FIND ADDR FOR F2A    V7A16
+         AGO       .MEND
+.ENDF2T  ANOP      ,                                              V7A16
+*                                                                 V7A16
+ALENF2   EQU       (F2END-ASMGF2+99)/100*100  ROUNDED ACTUAL F2   V7A16
+F2TEST   DC        0S(ALENF2-ELENF2) 0S(ELENF2-ALENF2)            V7A16
+.MEND    ANOP
+         DC        0D'0'               THIS IS WHERE WE'RE AT     V7A16
+*
+         MEND
+./ ADD NAME=CRBE     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CRBE      &R1,&R2,&B
+&L       CR        &R1,&R2         COMPARE REGISTER AND
+         BE        &B              BRANCH EQUAL
+         MEND
+./ ADD NAME=CRBH     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CRBH      &R1,&R2,&B
+&L       CR        &R1,&R2         COMPARE REGISTER AND
+         BH        &B              BRANCH HIGH
+         MEND
+./ ADD NAME=CRBL     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CRBL      &R1,&R2,&B
+&L       CR        &R1,&R2         COMPARE REGISTER AND
+         BL        &B              BRANCH LOW
+         MEND
+./ ADD NAME=CRBNH    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       CRBNH     &R1,&R2,&B
+&L       CR        &R1,&R2         COMPARE REGISTER AND
+         BNH       &B              BRANCH NOT HIGH
+         MEND
+./ ADD NAME=DCBOUT   0100-24030-24030-0038-00010-00010-00000-1050MAC 58
+         MACRO
+         DCBOUT
+         GBLB      &NOTBUG,&NOTSTAT
+         AIF       (&NOTBUG AND &NOTSTAT).EXIT
+SAVOUT1  DS        6F
+SAVOUT2  DS        18F
+DCBOUT   DCB       DSORG=PS,MACRF=(PMC),DDNAME=STATDBUG,DEVD=PR,       X
+               PRTSP=1,RECFM=F,LRECL=50,BLKSIZE=50,BFTEK=S,            X
+               BUFNO=1,BUFL=50,EROPT=ACC
+.EXIT    MEND
+./ ADD NAME=DEFCHAR  0100-24030-24030-0038-00108-00108-00000-1050MAC 58
+         MACRO
+         DEFCHAR
+         GBLA      &NUMCHAR,&EBDIC(64)
+         GBLC      &CHARSET(64)
+&NUMCHAR SETA      51
+&CHARSET(1)  SETC  '.'
+&CHARSET(2)  SETC  '('
+&CHARSET(3)  SETC  '+'
+&CHARSET(4)  SETC  ''''
+&CHARSET(5)  SETC  '&&'
+&CHARSET(6)  SETC  '*'
+&CHARSET(7)  SETC  ')'
+&CHARSET(8)  SETC  '-'
+&CHARSET(9)  SETC  '/'
+&CHARSET(10) SETC  ','
+&CHARSET(11) SETC  '='
+&CHARSET(12) SETC  'A'
+&CHARSET(13) SETC  'B'
+&CHARSET(14) SETC  'C'
+&CHARSET(15) SETC  'D'
+&CHARSET(16) SETC  'E'
+&CHARSET(17) SETC  'F'
+&CHARSET(18) SETC  'G'
+&CHARSET(19) SETC  'H'
+&CHARSET(20) SETC  'I'
+&CHARSET(21) SETC  'J'
+&CHARSET(22) SETC  'K'
+&CHARSET(23) SETC  'L'
+&CHARSET(24) SETC  'M'
+&CHARSET(25) SETC  'N'
+&CHARSET(26) SETC  'O'
+&CHARSET(27) SETC  'P'
+&CHARSET(28) SETC  'Q'
+&CHARSET(29) SETC  'R'
+&CHARSET(30) SETC  'S'
+&CHARSET(31) SETC  'T'
+&CHARSET(32) SETC  'U'
+&CHARSET(33) SETC  'V'
+&CHARSET(34) SETC  'W'
+&CHARSET(35) SETC  'X'
+&CHARSET(36) SETC  'Y'
+&CHARSET(37) SETC  'Z'
+&CHARSET(38) SETC  '0'
+&CHARSET(39) SETC  '1'
+&CHARSET(40) SETC  '2'
+&CHARSET(41) SETC  '3'
+&CHARSET(42) SETC  '4'
+&CHARSET(43) SETC  '5'
+&CHARSET(44) SETC  '6'
+&CHARSET(45) SETC  '7'
+&CHARSET(46) SETC  '8'
+&CHARSET(47) SETC  '9'
+&CHARSET(48) SETC  ' '
+&CHARSET(49) SETC  '$'
+&CHARSET(50) SETC  '@'
+&CHARSET(51) SETC  '#'
+&EBDIC(1)  SETA    X'2E'
+&EBDIC(2)  SETA    X'2F'
+&EBDIC(3)  SETA    X'27'
+&EBDIC(4)  SETA    X'31'
+&EBDIC(5)  SETA    X'2D'
+&EBDIC(6)  SETA    X'29'
+&EBDIC(7)  SETA    X'30'
+&EBDIC(8)  SETA    X'28'
+&EBDIC(9)  SETA    X'2A'
+&EBDIC(10) SETA    X'2B'
+&EBDIC(11) SETA    X'2C'
+&EBDIC(12) SETA    X'0A'
+&EBDIC(13) SETA    X'0B'
+&EBDIC(14) SETA    X'0C'
+&EBDIC(15) SETA    X'0D'
+&EBDIC(16) SETA    X'0E'
+&EBDIC(17) SETA    X'0F'
+&EBDIC(18) SETA    X'10'
+&EBDIC(19) SETA    X'11'
+&EBDIC(20) SETA    X'12'
+&EBDIC(21) SETA    X'13'
+&EBDIC(22) SETA    X'14'
+&EBDIC(23) SETA    X'15'
+&EBDIC(24) SETA    X'16'
+&EBDIC(25) SETA    X'17'
+&EBDIC(26) SETA    X'18'
+&EBDIC(27) SETA    X'19'
+&EBDIC(28) SETA    X'1A'
+&EBDIC(29) SETA    X'1B'
+&EBDIC(30) SETA    X'1C'
+&EBDIC(31) SETA    X'1D'
+&EBDIC(32) SETA    X'1E'
+&EBDIC(33) SETA    X'1F'
+&EBDIC(34) SETA    X'20'
+&EBDIC(35) SETA    X'21'
+&EBDIC(36) SETA    X'22'
+&EBDIC(37) SETA    X'23'
+&EBDIC(38) SETA    X'00'
+&EBDIC(39) SETA    X'01'
+&EBDIC(40) SETA    X'02'
+&EBDIC(41) SETA    X'03'
+&EBDIC(42) SETA    X'04'
+&EBDIC(43) SETA    X'05'
+&EBDIC(44) SETA    X'06'
+&EBDIC(45) SETA    X'07'
+&EBDIC(46) SETA    X'08'
+&EBDIC(47) SETA    X'09'
+&EBDIC(48) SETA    X'32'
+&EBDIC(49) SETA    X'24'
+&EBDIC(50) SETA    X'26'
+&EBDIC(51) SETA    X'25'
+         MEND
+./ ADD NAME=DROPR    0100-24030-24030-0038-00011-00011-00000-1050MAC 58
+         MACRO
+         DROPR
+         LCLA      &A
+         AIF       (N'&SYSLIST EQ 0).ALL
+&A       SETA      1
+.S       AIF       (N'&SYSLIST(&A) EQ 0).EXIT
+         USING     X&SYSLIST(&A),&SYSLIST(&A)
+&A       SETA      &A+1
+         AGO       .S
+.ALL     SETX
+.EXIT    MEND
+./ ADD NAME=DROPRUSE 0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+         DROPRUSE  &OR,&S,&NR
+         DROPR     &OR
+         USING     &S,&NR
+         MEND
+./ ADD NAME=ELZERO   0100-24030-24030-0038-00015-00015-00000-1050MAC 58
+         MACRO
+         ELZERO
+         GBLA  &NBR                     INPUT ERROR IN BINARY
+         GBLC  &CNBR                    OUTPUT ERROR IN CHARACTER
+         LCLA  &DIGCTR,&POWTEN          DIGITS REQUIRED, POWER OF TEN
+&DIGCTR  SETA  4
+&POWTEN  SETA  10
+&CNBR    SETC  '&NBR'                   SET ERROR NUMBER CHARACTER
+.SKIP01  AIF   (&NBR GE &POWTEN).SKIP02
+&CNBR    SETC  '0'.'&CNBR'              ADD A LEADING ZERO
+.SKIP02  ANOP
+&POWTEN  SETA  &POWTEN*10
+&DIGCTR  SETA  &DIGCTR-1
+         AIF   (&DIGCTR GT 1).SKIP01
+         MEND
+./ ADD NAME=EMSG     0100-24030-24030-0038-00022-00022-00000-1050MAC 58
+         MACRO
+         EMSG  &ERNO,&SVC,&MSG          GENERATE ERROR MESSAGE
+         GBLA  &GMAXNO                  MAX NUMBER OF ERRORS
+         GBLA  &NBR                     ERROR NUMBER BINARY
+         GBLB  &GERROR(200)             DUMMY ERROR FLAG
+         GBLC  &CNBR                    ERROR NUMBER CHARACTER
+         LCLA  &CNT                     WORK FOR LENGTH OF MESSAGE
+&NBR     SETA  &ERNO
+         AIF   (&NBR LE &GMAXNO).MSGOK  IF NO POINTER, FLAG
+         MNOTE 4,'EMSG  ***ERROR***  THIS MESSAGE HAS NO POINTER'
+.MSGOK   ANOP
+         AIF   (&GERROR(&NBR)).SKIP01
+.*
+.*       CONVERT NUMBER TO CHARACTER
+         ELZERO
+&CNT     SETA  K'&MSG-3                GET LENGTH-1 OF MESSAGE LESS 'S
+E&CNBR   DC    AL1(&CNT,&SVC),C&MSG
+         AGO   .SKIP02
+.SKIP01  MNOTE *,'ERROR &NBR IS AN ASSEMBLER ERROR.'
+.SKIP02  ANOP
+         SPACE 1
+         MEND
+./ ADD NAME=ENTRYOUT 0100-24030-24030-0038-00010-00010-00000-1050MAC 58
+         MACRO
+&S       ENTRYOUT  &PHASE,&DCB=YES,&CSECT=GSECT
+         GBLB      &STAT,&NOTBUG
+&S       DS        0H
+         AIF       (&STAT).ENTRY1
+         AIF       (&NOTBUG).EXIT
+         MESSAGE   'PHASE &PHASE ENTERED',DCB=&DCB,CSECT=&CSECT
+         AGO       .EXIT
+.ENTRY1  TIMEOUT   'PHASE &PHASE ENTERED',DCB=&DCB,CSECT=&CSECT
+.EXIT    MEND
+./ ADD NAME=EPTR     0100-24030-24030-0038-00029-00029-00000-1050MAC 58
+         MACRO
+         EPTR  &MAXNO,&ERROR=           GENERATE ERROR POINTERS
+         GBLA  &GMAXNO                  MAXIMUM NUMBER OF ERRORS
+         GBLA  &NBR                     ERROR NUMBER BINARY
+         GBLB  &GERROR(200)             DUMMY ERROR FLAG
+         GBLC  &CNBR                    ERROR NUMBER CHARACTER
+         LCLA  &I
+&NBR     SETA  N'&ERROR
+.SKIP01  AIF   (&NBR LE 0).SKIP02
+&I       SETA  &ERROR(&NBR)
+&GERROR(&I) SETB (1)
+&NBR     SETA  &NBR-1
+         AGO   .SKIP01
+.SKIP02  ANOP
+&NBR     SETA  1
+* GENERATED RELATIVE POINTER TABLE
+.SKIP03  ANOP
+         AIF   (&GERROR(&NBR)).SKIP04
+.*
+.*       CONVERT NUMBER TO CHARACTER
+         ELZERO
+         DC    AL2(E&CNBR-ESTART)
+         AGO   .SKIP05
+.SKIP04  DC    AL2(EFM-ESTART) ASSEMBLER ERROR DIAGNOSTIC
+.SKIP05  ANOP
+&NBR     SETA  &NBR+1                   UP TO NEXT ERROR NUMBER
+         AIF   (&NBR LE &MAXNO).SKIP03  LOOP IF MORE ERROR POINTERS
+&GMAXNO  SETA  &MAXNO                   SET SO SAME POINTERS AS MSG
+         MEND
+./ ADD NAME=FDIMEN   0100-24030-24030-0038-00409-00409-00000-1050MAC 58
+         MACRO
+         FDIMEN &GRA=4,&GRB=5,&GRC=6,&GRD=7,&SP1=10,&SP2=11,&SRR=9
+         MNOTE *,'ASMG CENTRAL DIMENSIONING DECK--SEE RTA FOR LISTING'
+*
+******** GENERAL REGISTER SYMBOLIC ASSIGNMENTS ************************
+* VARIABLE REGISTRS--MAY BE SPECIFIED TO NON-STANDARD VALUES
+SRR      EQU   &SRR      COMMON SUBROUTINE RETURN ADDRESS ODD   CONTIG.
+SP1      EQU   &SP1      COMMON SUBROUTINE PARAMETER 1    EVEN
+SP2      EQU   &SP2      COMMON SUBROUTINE PARAMETER 2    ODD
+GRA      EQU   &GRA      LEVEL 0-1 GP REG A  EVEN    A-D CONTIGUOUS
+GRB      EQU   &GRB      LEVEL 0-1 GP REG B  ODD
+GRC      EQU   &GRC      LEVEL 0-1 GP REG C
+GRD      EQU   &GRD      LEVEL 0-1 GP REG D
+ACT      EQU    3        ASSEMBLER CONTROL TABLE POINTER
+SRB      EQU    8        COMMON SUBROUTINE BASE ADDRESS   EVEN  SRB-SP1
+GRX      EQU   14        GENERAL PURPOSE REG X  EVEN   X-Y CONTIGUOUS
+GRY      EQU   15        GENERAL PURPOSE REG Y  ODD
+GRZ      EQU   13        GENERAL PURPOSE REG Z
+FRB      EQU   12        FUNCTIONAL ROUTINE BASE ADDRESS
+CRB      EQU   GRC       MAIN LINE CONTROL BASE ADDRESS
+CRR      EQU   GRD       MAIN LINE CONTROL RETURN ADDRESS
+GR0      EQU   0
+GR1      EQU   1
+GR2      EQU   2
+         LIST1EQU
+         EJECT
+******** INTERNAL CHARACTER CODES *************************************
+IZERO    EQU   X'00'     NUMBERS
+I1       EQU   X'01'
+I2       EQU   X'02'
+I3       EQU   X'03'
+I4       EQU   X'04'
+I5       EQU   X'05'
+I6       EQU   X'06'
+I7       EQU   X'07'
+I8       EQU   X'08'
+I9       EQU   X'09'
+IA       EQU   X'0A'     LETTERS
+IB       EQU   X'0B'
+IC       EQU   X'0C'
+ID       EQU   X'0D'
+IE       EQU   X'0E'
+IF       EQU   X'0F'
+IG       EQU   X'10'
+IH       EQU   X'11'
+II       EQU   X'12'
+IJ       EQU   X'13'
+IK       EQU   X'14'
+IL       EQU   X'15'
+IM       EQU   X'16'
+IN       EQU   X'17'
+IO       EQU   X'18'
+IP       EQU   X'19'
+IQ       EQU   X'1A'
+IR       EQU   X'1B'
+IS       EQU   X'1C'
+IT       EQU   X'1D'
+IU       EQU   X'1E'
+IV       EQU   X'1F'
+IW       EQU   X'20'
+IX       EQU   X'21'
+IY       EQU   X'22'
+IZ       EQU   X'23'
+IDOLLR   EQU   X'24'     EXTRA LETTERS
+IPOUND   EQU   X'25'
+IAT      EQU   X'26'
+IPLUS    EQU   X'27'     SPECIAL CHARACTERS
+IMINUS   EQU   X'28'
+IMULT    EQU   X'29'
+IASTER   EQU   X'29'
+IDIVID   EQU   X'2A'
+ICOMMA   EQU   X'2B'
+IEQUAL   EQU   X'2C'
+IAMPSD   EQU   X'2D'
+IPRIOD   EQU   X'2E'
+ILPARN   EQU   X'2F'
+IRPARN   EQU   X'30'
+IQUOTE   EQU   X'31'
+IBLANK   EQU   X'32'
+IALPHA   EQU   IAT       LAST ALPHA CHARACTER
+******** END INTERNAL CHARACTER CODES *********************************
+         EJECT
+CT1C     EQU   40                       TOTAL LENGTH OF CT1
+CT2C     EQU       14                   NUMBER OF FUNCTIONAL ROUTINES
+CT3C     EQU   10                       NUMBER OF COMMON SUBROUTINES
+CT4C     EQU   32                      NUMBER OF COMMON DATA AREAS
+CT5C     EQU   644                      TOTAL LENGTH OF CENTRAL TABLE
+CT6C     EQU       740                  LENGTH OF INTERNAL TEXT BUFFER
+CT1      EQU   0
+CT2      EQU   CT1+CT1C
+CT3      EQU   CT2+4*CT2C
+CT4      EQU   CT3+4*CT3C
+CT5      EQU   CT4+4*CT4C
+CT6      EQU   CT5+CT5C
+CTRTRN   EQU   CT1+16                   PLC RETURN FOR FUNCTIONAL ROUT
+CTLNK2   EQU   CT1+6                    MLC LINKAGE ALGORITM FOR ESD
+*./      DELETE    SEQ1=01920020,SEQ2=01920020
+CTSAVE   EQU   CTLNK2+18                CONTROL AEGISTER SAVE AREA
+******** CT2 DISPLACEMENT VALUES FOR FUNCTIONAL ROUTINE BASE ADDRESSES
+CBRNDA   EQU   CT2+00    BRENDA
+CDCVAL   EQU   CT2+44    DCEVAL
+*./      DELETE    SEQ1=02020020,SEQ2=02020020
+CTXGET   EQU   CT2+48    TXGET
+ASOPRO   EQU   CT2+40                   ENTRY TO ASSEMBLER OP PROCESSOR
+MACHOP   EQU   CT2+36                   ENTRY TO MACHINE OP PROCESSOR
+PRNT     EQU   CT2+32                   ENTRY TO PRINT ROUTINE
+CTESTR   EQU   CT2+52
+******** ESD FUNCTIONAL ROUTINE ENTRY POINTS **************************
+CCOM     EQU   CT2+04    COM   (BRENDA)
+CCSECT   EQU   CT2+08    CSECT (BRENDA)
+CDSECT   EQU   CT2+12    DSECT (BRENDA)
+CENTRY   EQU   CT2+16    ENTRY (BRENDA)
+*./      DELETE    SEQ1=02240020,SEQ2=02280020
+CEXTRN   EQU   CT2+20    EXTRN (BRENDA)
+CORG     EQU   CT2+24    ORG   (BRENDA)
+CQUIT    EQU   CT2+28    QUIT  (BRENDA)
+CSTART   EQU   CT2+32    START (BRENDA)
+CUPC     EQU   CT2+36    UPC   (BRENDA)
+CDXD     EQU   CT2+40    CXD   (BRENDA)
+******** CT3 DISPLACEMENT VALUES FOR COMMON SUBROUTINE BASE ADDRESSES *
+CTXTIO   EQU   CT3+00    TEXTIO
+CSTGET   EQU   CT3+04    STGET
+CSTPUT   EQU   CT3+08    STPUT
+CEEVAL   EQU   CT3+12    EEVAL
+CLOGER   EQU   CT3+16    LOGERR
+CDCGET   EQU   CT3+20    DCGETR
+CVCON    EQU   CT3+24    VCON
+CTCOMT   EQU   CT3+36                   F/8 PRINT COMMENT
+CTBLDG   EQU   CT3+40                   F/8 PRINT BUILDING
+CSTROM   EQU   CT3+28    STROOM
+F8STSC   EQU   CT3+20
+CCONV    EQU   CT3+32
+F8LIGN   EQU   CSTPUT
+F8DCMP   EQU   CVCON
+F8EXPX   EQU   CSTROM
+CSTREF   EQU       CCONV               F7 XREF OUTPUT
+******** IO SUBROUTINE ENTRY POINT DISPLACEMENT VALUES ****************
+GETPT    EQU    2   (TEXTIO)
+GETXTM   EQU    6   (TEXTIO)
+PUTXT    EQU   10   (TEXTIO)
+CLSTXT   EQU   14   (TEXTIO)
+PHCLS    EQU   22   (TEXTIO)
+CF7I     EQU   18   (TEXTIO)
+PUTXRF   EQU   34   (TEXTIO)
+PUTLBT   EQU   38   (TEXTIO)
+PUTRLD   EQU   42   (TEXTIO)
+GETLAT   EQU   46   (TEXTIO)
+WTERR    EQU   50   (TEXTIO)
+SYSLST   EQU   54   (TEXTIO)
+SYSOUT   EQU   58   (TEXTIO)
+CF8I     EQU   CF7I
+         EJECT
+******** CT4 DISPLACEMENT VALUES FOR POINTERS TO COMMON DATA AREAS ****
+CTEXTP   EQU   CT4+00    FIRST BYTE OF CURRENT TEXT RECORD
+CTXOFP   EQU   CT4+04    TEXT OPERAND FIELD LENGTH INDICATOR /TXOPNL/
+CTXABP   EQU   CT4+08    FIRST BYTE OF TEXT APPENDED FIXED FIELD
+CTXWBP   EQU   CT4+12    FIRST SYMBOL WORK BUCKET IN TEXT RECORD
+CTERRP   EQU   CT4+16    ERROR RECORD WORK AREA
+CTLDCP   EQU   CT4+20    LITERAL DC RECORD WORK AREA
+CTXWAP   EQU   CT4+24    TEXT RECORD WORK AREA
+CTSYMP   EQU   CT4+28    SYMBOL TABLE
+CTESDP   EQU   CT4+32    ESD TABLE
+CTRTBP   EQU   CT4+36    TRANSLATE TABLE
+CESIOA   EQU   CT4+40    BOTTOM OF MEMORY GOTTEN FROM BUFF BY F7I
+CTESRB   EQU   CT4+44    ESD SEGMENT RESIDENCE TABLE BASE ADDRESS
+CESIOB   EQU   CT4+48    TOP OF MEMORY GOTTEN FROM BUFF
+CTXIO1   EQU   CT4+52    IO BUFFER 1
+CTFVEVAL EQU   CT4+56    POINTER TO F7V/F8V TERMS WORK AREA
+CTXIO3   EQU   CT4+60    IO BUFFER 3
+CTXIO4   EQU   CT4+64    IO BUFFER 4
+CTESRP   EQU   CT4+68    ESD SEGMENT RESIDENCE ENTRY POINTER
+CFREEP   EQU   CT4+72    SYMBOL TABLE FREE STORAGE
+CADJBS   EQU   CT4+76    ADJUSTMENT TABLE
+H1STC    EQU   CT4+80                   PAGE TITLE LINE
+CTXRFP   EQU   CT4+84              XRF
+CTRLDP   EQU   CT4+88              RLD
+CTLBTP   EQU   CT4+92              LBT & LAT
+CTERRB   EQU   CT4+96              PH8 ERROR BUFFER
+CTESDS   EQU   CT4+100             LAST BYTE OF ESD (600 BYTE BUFFER)
+*        EQU   CT4+104    UNUSED
+*        EQU   CT4+108    UNUSED
+ADLIST1  EQU   CT4+112    ADDRESS OF LIST1 COMMON AREA IN PHASE ASM
+LSTDCB   EQU   CT4+116                 PTR TO SYSPRINT DCB  *(DCBPRNT)
+PCHDCB   EQU   CT4+120                 PTR TO SYSPUNCH DCB *(DCBPCH)
+GODCB    EQU   CT4+124                 PTR TO SYSLIN DCB  *(DCBLIN)
+*./      DELETE    SEQ1=03740020,SEQ2=03760020
+         EJECT
+******** CT5 DISPLACEMENT VALUES FOR CENTRAL TABLES AND ITEMS *********
+CTLOC    EQU   CT5+00     4        CURRENT LOCATION COUNTER
+CTSEQN   EQU   CT5+04     4        CURRENT STATEMENT SEQUENCE NUMBER
+CTLEN    EQU   CT5+08     4        CURRENT STATEMENT LENGTH
+CTITLE   EQU   CT5+12     8        FIRST TITLE NAME FIELD
+STVALU   EQU   CT5+20     4        VALUE FOR STPUT ENTRIES
+CPRIME   EQU   CT5+24     4        PRIME DIVISOR FOR SYMBOL TABLE
+CSTVAL   EQU   CT5+28     4        VALUE FROM START CARD
+CTXLEN   EQU   CT5+32     2        TEXT BLOCK LENGTH
+CNOESD   EQU   CT5+34     2        NUMBER OF ESDS
+CENTCT   EQU   CT5+36     2        NUMBER OF ENTRIES
+CLASID   EQU   CT5+38     2        LAST ID
+CTNDID   EQU   CT5+40     2        NEXT DSECT ID
+CESDNO   EQU   CT5+42     2        CURRENT ESD NUMBER
+CSGCTR   EQU   CT5+44     2        ESD RESIDENT SEGMENT COUNTER
+CPCNO    EQU   CT5+46     2        PRIVATE CODE ESD NUMBER
+CCMNO    EQU   CT5+48     2        COMMON ESD NUMBER
+STLONG   EQU   CT5+50     2        LENGTH ATTRIBUTE FOR STPUT ENTRIES
+ESSGSZ   EQU   CT5+52     2        ESD SEGMENT SIZE
+CESDID   EQU   CT5+54     1        CURRENT ESD ID
+CTPCSW   EQU   CT5+55     1        PRIVATE CODE SWITCH
+CTCMSW   EQU   CT5+56     1        COMMON SWITCH
+CFSTID   EQU   CT5+57     1        FIRST CSECT ID
+CTYPE    EQU   CT5+58     1        CURRENT CSECT TYPE
+CTLIT2   EQU   CT5+59     1        LTORG OR END CARD SWITCH
+ESDID    EQU   CT5+60     1        ASSIGNED ESD ID
+ADJCOD   EQU   CT5+61     1        ADJECTIVE CODE
+CTALIN   EQU   CT5+62     1        ALIGNMENT CODE  0-B,1-H,3-F,7-D
+*        EQU   CT5+64 .0   .1      UNUSED
+*        EQU   CT5+64 .1   .2      UNUSED
+*        EQU   CT5+64 .3   .1      UNUSED
+*        EQU   CT5+64 .4   .1      UNUSED
+CTERRI   EQU   CT5+64 .5   .1      ERROR RECORD INDICATOR
+CTPH7C   EQU   CT5+64 .6   .1      PHASE 7 COMPLETE INDICATOR
+*        EQU   CT5+64 .7   .1      UNUSED
+CTSDVI   EQU   CT5+65 .0   .1      SELF DEFINING VALUE INDICATOR
+CTLCRI   EQU   CT5+65 .1   .1      LOCATION COUNTER REFERENCE INDICATOR
+CTPDSI   EQU   CT5+65 .2   .1      DEFINED SYMBOLS REQ. FOR F/7 EEVAL
+CTDORCI  EQU   CT5+65 .3   .1      CURRENTLY IN DSECT OR COM IND.
+CTSCON   EQU   CT5+65 .4   .2      ADDRESS ERROR IN S-CON
+CTEXENSW EQU   CT5+65 .5   .1      ENTRY-EXTRN EQUATED SWITCH
+CTSWXT   EQU   CT5+65 .6   .1      EXTRN-WXTRN MODE SWITCH
+CTLIT3   EQU   CT5+65 .7   .1      TELL IF LITS ARE GEN'D
+         SPACE 2
+CTFUPLI  EQU   CT5+66 .0   .1      FULLUPLIST OPTION INDICATOR
+CTDOSI   EQU   CT5+66 .1   .1      DOS OPTION INDICATOR
+CTESDI   EQU   CT5+66 .2   .1      ESD OPTION INDICATOR
+CTBTCHI  EQU   CT5+66 .3   .1      BATCH OPTION INDICATOR
+CTFLLSTI EQU   CT5+66 .4   .1      FULLLIST OPTION INDICATOR
+CTEXTENI EQU   CT5+66 .5   .1      EXTEN OPTION INDICATOR
+CTFXRFI  EQU   CT5+66 .6   .1      FULLXREF OPTION INDICATOR
+CTALGNI  EQU   CT5+66 .7   .1      ALGN OPTION INDICATOR
+         SPACE 2
+CTPCHI   EQU   CT5+67 .0   .1      DECK OPTION INDICATOR
+CTCGOI   EQU   CT5+67 .1   .1      LOAD OPTION INDICATOR
+CTRENTI  EQU   CT5+67 .2   .1      RE-ENTRANT OPTION INDICATOR
+CTLSTI   EQU   CT5+67 .3   .1      LIST OPTION INDICATOR
+CTRLDI   EQU   CT5+67 .4   .1      RLD OPTION INDICATOR
+CTUPLI   EQU   CT5+67 .5   .1      UPLIST OPTION INDICATOR
+CTXRFI   EQU   CT5+67 .6   .1      X-REF OPTION INDICATOR
+CTTSTI   EQU   CT5+67 .7   .1      TESTRAN OPTION INDICATOR
+         SPACE 2
+CTLREF   EQU   CT5+68 .0   .1      LITERAL CROSS REFERENCE INDICATOR
+CTUPDATE EQU   CT5+68 .1   .1      UPDATE OPTION INDICATOR
+CTEXEC   EQU   CT5+68 .2   .1      EXECUTE OPTION INDICATOR
+CTMXSPCE EQU   CT5+68 .3   .1      SPACE=MAX INDICATOR
+CTTRMI   EQU   CT5+68 .4   .1      TERM OPTION INDICATOR
+CTNUMI   EQU   CT5+68 .5   .1      LINE NUMBER OPTION INDICATOR
+CTSTMI   EQU   CT5+68 .6   .1      STATEMENT NUMBER OPTION INDICATOR
+CTSEQI   EQU   CT5+68 .7   .1      SEQ NUMBERS FOR SQUISHED FILES V7A43
+         SPACE 2
+CTUMAPI  EQU   CT5+69 .0   .1      USING MAP OPTION INDICATOR
+CTCMSI   EQU   CT5+69 .1   .1      CMS OPTION INDICATOR
+CTXRFFSI EQU   CT5+69 .2   .1      XREF(FULL/SHORT) INDICATOR
+CTPRTI   EQU   CT5+69 .3   .1      PRINTER OPTION SPECIFIED       V7A44
+CTYFLGI  EQU   CT5+69 .4   .1      Y-CON ERROR FLAG               V7A44
+*        EQU   CT5+69 .5   .1      RESERVED
+*        EQU   CT5+69 .6   .1      RESERVED
+CTUNUSED EQU   CT5+69 .7   .1      UNUSED
+         SPACE 2
+CBDNO    EQU   CT5+70     2        BLANK DSECT ESD NUMBER
+CBDSW    EQU   CT5+72     1        BLANK DSECT ID NO
+CTSEVCOD EQU   CT5+73     1        HIGHEST SEVERITY CODE (MNOTE/ERROR)
+CTPGLNCT EQU   CT5+74     1        PAGE LINE COUNT
+CTMRSRTN EQU   CT5+76     4        RETURN TO RTA
+*        EQU   CT5+80     16       UNUSED
+CTZERO   EQU   CT5+96     8        TWO FULL WORDS OF ZEROES
+CTWORK   EQU   CT5+104  256        256 BYTE WORK AREA/F8 PUSH,POP USING
+STCHAIN  EQU   CT5+360    4            START OF SYMBOL TABLE CHAIN
+CHAINPT  EQU   CT5+364    4            END   OF SYMBOL TABLE CHAIN
+CTADJEND EQU   CT5+368    4            END OF ADJUSTMENT TABLE
+CTRLBT   EQU   CT5+372    4        FIRST LBT BLOCK PTR ON OVF1
+CTRRLD   EQU   CT5+376    4        FIRST RLD BLOCK PTR ON OVF1
+CTRERR   EQU   CT5+380    4        FIRST ERROR BLOCK (PH8)
+CTCXRF   EQU   CT5+384    2        XRF BLOCK COUNT
+*        EQU   CT5+386    2        UNUSED
+CTCRLD   EQU   CT5+388    2        RLD BLOCK COUNT
+CTCERR   EQU   CT5+390    2        ERROR BLOCK COUNT (PH8)
+CTUSPP   EQU   CT5+392    2        USING PUSH/POP COUNT
+CTPRPP   EQU   CT5+394    2        PRINT PUSH/POP COUNT
+STLREF   EQU   CT5+396    4        START OF LITERAL ENTRIES IN S. T.
+CTLITA   EQU   CT5+400   16        CURRENT LITERAL POOL STRING LENGTHS
+CTLITB   EQU   CT5+416   16        CURRENT LITERAL POOL STRING COUNTS
+CTXSAV   EQU   CT5+432        8
+CTFSTN   EQU   CT5+440   8         FIRST CSECT NAME
+CTDATE   EQU   CT5+448    9        DATE FOR LISTING
+CTENDSW  EQU   CT5+457 1        END CARD PROCESSED IN F8
+CTERRSW  EQU   CT5+458 1        ERROR SWITCH FOR F8P
+*        EQU   CT5+459 1         UNUSED
+CTLINECT EQU   CT5+460    4        PRINT LINE COUNT        1 OF 2
+CTPBUFPT EQU   CT5+464    4        PRINT BUFFER POINTER    2 OF 2
+CADJTB   EQU   CT5+468                  ADJUSTMENT TABLE BASE
+RR2SWH   EQU   CT5+472                  RR2 INSTRUCTION TYPE SWITCH
+ERSWH    EQU   CT5+476                  ERROR SWITCH
+CESDIDPS EQU   CT5+477                  PSEUDO CURRENT ESD ID
+CTEMERR  EQU   CT5+478                  MNOTE ERRROR INDICATOR
+SPACSW   EQU   CT5+480                  SPACE SWITCH
+EJCTSW   EQU   CT5+484                  EJECT SWITCH
+REPSW    EQU   CT5+488                  REPO SWITCH
+CCRDCT   EQU   CT5+492                  CARD COUNT
+STUMAP   EQU   CT5+496                  START OF USING ENTRIES IN S.T.
+ENDSWH   EQU   CT5+500                  END SWITCH
+F8OPRN   EQU   CT5+504                  OPERAND POINTER
+BUFFPT   EQU   CT5+508                 POINTER TO BUFF ROUTINE
+F8CADJ   EQU   CT5+512                  CURRENT ADJUSTMENT
+ALIGN4   EQU   CT5+516                  FOR ALIGNING
+F8ALLB   EQU   CT5+520                  FULL WORD OF BITS
+F83BYT   EQU   CT5+524                  3 BYTS OF BITS, LOW ORDER
+F82BYT   EQU   CT5+528                  2 BYTES OF BITS, LOW ORDER
+F81BYT   EQU   CT5+532                  1 BYTE OF BITS, LOW ORDER
+F8PON    EQU   CT5+536
+F8PGEN   EQU   CT5+540
+F8PDAT   EQU   CT5+544
+F8ZERO   EQU   CT5+548                  ONE FULL WORD OF ZERO
+F8INST00 EQU   CT5+552
+F8INST   EQU   CT5+553                  16 DEEP INSTRUCTION BLDG AREA
+F8ZRO    EQU   CT5+572                  ONE FULL WORD OF ZWRO
+PYRSW    EQU   CT5+576
+F8YDC    EQU   CT5+580
+CTESRN   EQU   CT5+584                  ESD SEG COUNT
+CTWRAP7  EQU   CT5+588                  SEQ FOR WRAPAROUND
+CTSEQ8   EQU   CT5+592                  SEQ FOR WRAP AROUND CHECK
+CTTERMC  EQU   CT5+596    2             MAX NUM TERMS IN F7V/F8V
+CTPARENC EQU   CT5+598    2             MAX PAREN LEVEL IN F7V/F8V
+CTF8LNGT EQU   CT5+600                  STATEMENT LENGTH FOR WRAP AROU
+CTWRAPX  EQU   CT5+604
+CTIDR    EQU   CT5+608  1  IDR SWITCH  40=NO,F1=ONE,F2=TWO IDR ITEMS
+CT2IDR   EQU   CT5+609 19  SECOND IDR IF PRESENT
+F8WORK   EQU   CT6
+         EJECT
+******** DIMENSIONING FOR INTERNAL TEXT RECORDS ***********************
+*        FIXED FIELD
+TXRL     EQU   0 .0   2.0     RECORD LENGTH
+TXLRI    EQU   2 .0    .1     LAST RECORD IN BUFFER INDICATOR
+TXRT     EQU   2 .1    .3     RECORD TYPE
+TXBF     EQU   2 .4    .1     BREAK FLAG
+TXERI    EQU   2 .5    .1     ERROR RECORD FOLLOWS INDICATOR
+TXESI    EQU   2 .6    .1     EQUAL SIGN INDICATOR
+TXMARK   EQU   2 .7    .1     PHASE 7 ITERATION POINT FLAG
+TXTO     EQU   3 .0    .2     TYPE OF OPERATION
+TXEMF    EQU   3 .2    .1     EXTENDED MNEMONIC FLAG
+TXMDN    EQU   3 .3    .1     MULTIPLY DEFINED NAME INDICATOR
+TXR1M    EQU   3 .4    .4     R1 MASK FOR EXTENDED MNEMONICS
+TXHEX    EQU   4 .0   1.0     MACHINE OP CODE OR ASSEMBLER CODE
+TXASC    EQU   5 .0   1.0     ASSEMBLER SWITCH CODE
+TXABP    EQU   6 .0   2.0     APPENDED FIXED FIELD POINTER
+*        VARIABLE FIELD
+TXNAML   EQU   8 .0   1.0     NAME FIELD LENGTH
+TXNAME   EQU   9 .0   V.0     NAME FIELD
+TXOPL    EQU   0 .0   1.0     OPERATION FIELD LENGTH
+TXOP     EQU   1 .0   V.0     OPERATION FIELD
+TXOPNL   EQU   0 .0   1.0     OPERAND FIELD LENGTH
+TXOPN    EQU   1 .0   V.0     OPERAND FIELD
+TXCOML   EQU   0 .0   1.0     COMMENTS FIELD LENGTH
+TXCOM    EQU   1 .0   V.0     COMMENTS FIELD
+*        APPENDED FIXED FIELD
+TXLOC    EQU   0 .0   3.0     LOCATION COUNTER
+TXURS    EQU   3 .0   1.0     UNRESOLVED SYMBOL COUNTER
+TXLES    EQU   4 .4    .1     END OF STRING INDICATOR
+TXSTG    EQU   4 .5    .3     STRING NUMBER
+TXALIN   EQU   4 .5    .3     ALIGNMENT FOR MACHINE OPS
+TXFAFL   EQU   5              LENGTH OF FIXED APPENDED FIELD
+*        WORK BUCKET TYPE 1  - LITERAL IN OPERAND FIELD
+*ZERO    EQU   5 .0    .2     FIRST TWO BITS MUXT BE ZERO
+TXLEVI   EQU   5 .6    .1     LITERAL EVALUATED INDICATOR
+TXLASI   EQU   5 .7    .1     LITERAL ASSIGNED INDICATOR
+TXLSTG   EQU   6 .0   1       LITERAL STRING NUMBER
+TXLDSP   EQU   7 .0   3       LITERAL STRING DISPLACEMENT
+TXLLEN   EQU  10    1         LITERAL LENGTH ATTRIBUTE
+*        WORK BUCKET TYPE 2  - 6 BYTE SYMBOL W.B.
+TXWTYP   EQU   0 .0    .1     WORK BUCKET TYPE  1-TYPE 2, 0-TYPE 1 OR 3
+TXWLEN   EQU   0 .1    .1     WORK BUCKET LENGTH  1- 15BYTES, 0- 6 BYTE
+TXSDOC   EQU   0 .2    .1     SYMBOL DEFINED IN DSECT OR COM INDICATOR
+TXSUBS   EQU   0 .3    .1     VALUE SUBSTITUDED INDICATOR
+TXSLAS   EQU   0 .4    .1     LAST SYMBOL IN OPERAND INDICATOR
+TXSEXI   EQU   0 .5    .1     IMPLIED LENGTH EXCEEDS 256 INDICATOR
+TXSTPC   EQU   0 .6       .2       TO BE DEFINED BY B. BITTNER
+TXSLEN   EQU   1      1       IMPLIED LENGTH
+TXSESD   EQU   2      1       ESD ID
+TXSVAL   EQU   3      3       VALUE
+TXSBLN   EQU   4      1       SYMBOL BYTE LENGTH
+TXSESL   EQU   4 .0  .1       LAST OPERAND IN EXTRN/ENTRY INDICATOR
+TXSPTR   EQU   5      1       POINTER TO SYMBOL IN OPERAND FIELD
+*        WORK BUCKET TYPE 3  - 15 BYTE DC, DS, LDC W.B.
+*TXWTYP  EQU   0 .0   .1      WORK BUCKET TYPE  1-TYPE 2, 0-TYPE 1 OR 3
+*TXWLEN  EQU   0 .1   .1      WORK BUCKET LENGTH  1-15 BYTES, 0-6 BYTES
+TXDPPI   EQU   0 .2   .1      DC PREVIOUSLY PROCESSED INDICATOR
+TXDLMP   EQU   0 .3   .1      LENGTH MODIFIER PRESENT INDICATOR
+TXDTYP   EQU   1      1       TYPE - TRANSLATED
+TXDLEN   EQU   2      3       TOTAL LENGTH
+TXDLAS   EQU   0 .4    .1     LAST OPERAND INDICATOR
+TXDUPL   EQU   5      3       DUPLICATION FACTOR
+TXDCON   EQU   8      1       NUMBER OF CONSTANTS
+TXDPTR   EQU   9      1       POINTER TO FIRST BYTE OF OPERAND
+TXDEXP   EQU  10      1       EXPONENT
+TXDSCM   EQU  11      1.3     SCALE MODIFIER
+TXDSYM   EQU  12 .3    .1     SYMBOL WORK BUCKETS FLAG
+TXDALN   EQU  12 .4    .3     ALIGNMENT
+TXDLMD   EQU  12 .7    .1     LENGTH MODIFIER TYPE  1-BIT, 0-BYTE
+TXDLNM   EQU  13      2       LENGTH MODIFIER VALUE
+*./      DELETE    SEQ1=07400020,SEQ2=07580020
+         MEND
+./ ADD NAME=FINISH   0100-24030-24030-0038-00007-00007-00000-1050MAC 58
+         MACRO
+&LABEL   FINISH    &RC=0
+&LABEL   L         13,ZZZZSAVE+4       POINT TO CALLER'S SAVE AREA
+         LM        14,12,12(13)        RESTORE CALLER'S REGISTERS
+         LA        15,&RC              SET RETURN CODE
+         BR        14                  RETURN TO CALLER
+         MEND
+./ ADD NAME=GETT     0100-24030-24030-0038-00028-00028-00000-1050MAC 58
+         MACRO
+&LABEL   GETT      &INPUT,&LENGTH=80,&EOF=
+         LCLA      &TLEN
+&TLEN    SETA      &LENGTH
+         AIF       (&TLEN GE 1).NEXT1
+         MNOTE     0,'LENGTH PARAMETER WAS TOO SMALL'
+&TLEN    SETA      80
+.NEXT1   AIF       (&TLEN LE 80).NEXT2
+         MNOTE     0,'LENGTH PARAMETER WAS TOO BIG'
+&TLEN    SETA      80
+.NEXT2   ANOP
+&LABEL   STM       0,3,ZZZZTEMP        SAVE WORK REGISTERS
+         L         1,ZZZZSAVE          POINTER TO ASMG DCB LIST
+         L         1,16(,1)            POINT TO SYSIN DCB
+         AIF       (K'&EOF EQ 0).NOEOF WAS EOF SPECIFIED
+         MVC       ZZZDUMMY(3),33(1)   SAVE GLOBAL EODAD EXIT
+         LR        2,1                 REMEMBER DCB ADDR OVER GET
+         MVC       33(3,1),=AL3(&EOF)  MODIFY THE SYSIN EODAD
+.NOEOF   ANOP
+         LA        0,ZZZINPUT          POINT TO MY INPUT AREA
+         L         15,48(,1)           LOAD GET ADDRESS FROM DCB
+         BALR      14,15               DO THE GET
+         AIF       (K'&EOF EQ 0).NOEOD WAS EOF SPECIFIED
+         MVC       33(3,2),ZZZDUMMY    RESTORE EODAD ADDRESS
+.NOEOD   ANOP
+         MVC       &INPUT.(&TLEN),ZZZINPUT TRANSFER TO USER'S AREA
+         LM        0,3,ZZZZTEMP        RESTORE WORK REGISTERS
+         MEND
+./ ADD NAME=INST     0100-24030-24030-0038-00098-00098-00000-1050MAC 58
+         MACRO
+&L       INST  &OP=00,                 OPCODE IN HEX                   ?
+               &TYPE=MACH,             MACH, ASSEM, OR EXTEN           ?
+               &RPQ67=NO,              YES OR NO                       ?
+               &FLOAT=NO,              YES OR NO      MACH OR EXTEN    ?
+               &EVEN=NO,               YES/NO/DOUBLE  MACH OR EXTEN    ?
+               &ALIGN=C,               C, H, F, OR D  MACH OR EXTEN    ?
+               &CLASS=0,               0, 1, 2, OR 3  MACH OR EXTEN    ?
+               &LIT1=NO,               YES OR NO      MACH OR EXTEN    ?
+               &LIT23=NO,              YES OR NO      MACH OR EXTEN    ?
+               &UPC=NO,                YES OR NO      ASSEM            ?
+               &STE=NO,                YES OR NO      ASSEM            ?
+               &LCR=NO,                YES OR NO      ASSEM            ?
+               &F7XREF=NO,             YES OR NO      ASSEM            ?
+               &SUB=NO,                YES OR NO      ASSEM            ?
+               &F8UPC=NO,              YES OR NO      ASSEM            ?
+               &MASK=00                MASK IN HEX    EXTEN OR ASSEM
+.*
+         GBLA      &GDIND,&CHAINAD(128),&VALUE
+         GBLB      &CHAINSW(128),&RPQ67SW
+         GBLC      &CHAR,&LASTL
+         LCLA      &V(8),&T,&W1,&B0,&B1,&B2,&B3,&B4,&B5,&B6,&B7
+         LCLC      &C(8),&TM
+.*       TEST IF MOD 67 RPQ INST
+         AIF       (('&RPQ67' EQ 'YES') AND (NOT &RPQ67SW)).MEND
+.*                 TRANSLATE OP-CODE TO INTERNAL CODE
+.TRANS   ANOP
+&W1      SETA      &W1+1
+&CHAR    SETC      '&L'(&W1,1)
+         TRANSLAT
+&V(&W1)  SETA      &VALUE
+&C(&W1)  SETC      '&VALUE,'
+         AIF       (&W1 NE K'&L).TRANS
+&C(&W1)  SETC      '&VALUE'
+.*                 HASH THE OPCODE
+&W1      SETA      (((&V(1)+&V(5))*256+&V(2)+&V(6))*256+&V(3)+&V(7))*25?
+               6+&V(4)+&V(8)
+&W1      SETA      &W1-&W1/8209*8209
+&W1      SETA      (&W1-&W1/128*128)/2*2
+.*                 CHAIN TO HASH TABLE
+         AIF       (&CHAINSW(&W1+1)).CHAIN1
+&CHAINSW(&W1+1) SETB 1
+         ORG       PHASHT+&W1
+         AGO       .CHAIN2
+.*                 CHAIN TO A PREVIOUS ENTRY
+.CHAIN1  ORG       GLDICT+&CHAINAD(&W1+1)
+.CHAIN2  DC        AL2(&GDIND)
+         ORG
+&CHAINAD(&W1+1) SETA &GDIND
+&W1      SETA      (K'&L-1)
+         AIF       ('&TYPE' EQ 'MACH').MACH
+&TM      SETC      'X''&MASK'','
+&GDIND   SETA      &GDIND+1
+&T       SETA      2
+         AIF       ('&TYPE' EQ 'EXTEN').MACH
+.*                 ASSEMBLER OPCODE
+&T       SETA      1
+         AIF       ('&UPC' EQ 'NO').NO1
+&B0      SETA      1
+.NO1     AIF       ('&STE' EQ 'NO').NO2
+&B1      SETA      1
+.NO2     AIF       ('&LCR' EQ 'NO').NO3
+&B2      SETA      1
+.NO3     AIF       ('&F7XREF' EQ 'NO').NO4
+&B3      SETA      1
+.NO4     AIF       ('&SUB' EQ 'NO').NO5
+&B4      SETA      1
+.NO5     AIF       ('&F8UPC' EQ 'NO').NO6
+&B7      SETA      1
+         AGO       .NO6
+.*                 MACHINE OR EXTENDED OP-CODE
+.MACH    AIF       ('&FLOAT' EQ 'NO').NO7
+&B0      SETA      1
+.NO7     AIF       ('&EVEN' EQ 'NO').NO8
+         AIF       ('&EVEN' EQ 'DOUBLE').NO8
+&B1      SETA      1
+.NO8     AIF       ('&ALIGN' EQ 'C').NO9
+         AIF       ('&ALIGN' EQ 'H').NOA
+&B2      SETA      1
+         AIF       ('&ALIGN' EQ 'F').NO9
+.NOA     ANOP
+&B3      SETA      1
+.NO9     ANOP
+&B4      SETA      (&CLASS/2)
+&B5      SETA      (&CLASS-&B4*2)
+         AIF       ('&LIT23' EQ 'NO').NOB
+&B6      SETA      1
+.NOB     AIF       ('&LIT1' EQ 'NO').NO6
+&B7      SETA      1
+.NO6     DC    FL2'0',FL.5'&T',AL.3(&W1),AL1(&C(1)&C(2)&C(3)&C(4)&C(5)&?
+               C(6)&C(7)&C(8)),X'&OP',&TM.B'&B0&B1&B2&B3&B4&B5&B6&B7'
+&GDIND   SETA      (&GDIND+K'&L+5)
+         AIF       ('&L' EQ 'AIFB' OR '&L' EQ 'AGOB').MEND
+         AIF       ('&L' GT '&LASTL').INCROK
+         MNOTE     4,'INST -- OPCODE ''&L'' OUT OF ORDER'
+.INCROK  ANOP
+&LASTL   SETC      '&L'
+.MEND    MEND
+./ ADD NAME=INSTSET  0100-24030-24030-0038-00082-00082-00000-1050MAC 58
+         MACRO
+&L       INSTSET
+         GBLA      &GDIND
+&GDIND   SETA      1
+&L       START
+*./      DELETE    SEQ1=00110021,SEQ2=00140021
+*
+*./      DELETE    SEQ1=00180020,SEQ2=00180020
+*        THE PERMANENT HASH TABLE (PHASHT) AND THE CONSTANT
+*         GLDLEN ARE MOVED FROM THIS ASMGISXX MODULE INTO THE
+*         COMMON MODULE ASSEMBLED AS PART OF ASMGF1.
+*./      DELETE    SEQ1=00260020,SEQ2=00260020
+*
+GLDLEN   DC        A(GLDEND-GLDICT)     END OF OPCODES (REL)
+*
+*./      DELETE    SEQ1=00340020,SEQ2=08820020
+PASHL    EQU       64                  NUMBER OF PERM HASH TBL ENTRIES
+*./      DELETE    SEQ1=08860020,SEQ2=08860020
+PHASHT   DC        (PASHL)H'0'          PERM (GLOBAL) HASH TABLE
+*                                         (2 BYTES PER ENTRY)
+*./      DELETE    SEQ1=08920020,SEQ2=10060020
+***********************************************************************
+         EJECT
+*************** GLOBAL (PERMANENT) DICTIONARY--OP CODES ***************
+*
+*
+*
+.*       SET UP CHARACTER TO INTERNAL CODE TRANSLATION TABLE
+         DEFCHAR
+*
+*        THE FOLLOWING IS AN EXPLANATION OF THE PARMS ON THE INST MACRO
+*
+*        0P=XX     OPCODE (MACHINE OR ASSEMBLER INTERNAL) IN HEX
+*        TYPE=ASSEM     ASSEMBLER OP-CODE  EXAMPLE START,DC,ACTR
+*        TYPE=MACH      MACHINE OP-CODE    EXAMPLE BC,LTR,BXLE
+*        TYPE=EXTEN     EXTENDED MNEMONIC  EXAMPLE BE,NOPR,BM
+*                       ALSO SI EX. INSTS  EXAMPLE HDV,SCK,STIDP
+*        MASK=XX   MASK BYTE NEEDED ONLY FOR ASSEM OR EXTEN OPS
+*        RPQ67=YES ONLY IF THIS IS A MOD 67 RPQ INST
+******  FOLLOWING PARAMETERS NEEDED ONLY FOR MACH OR EXTEN OPS
+*        FLOAT=YES/NO   IF REGISTER SPECS MUST BE .LE. 6
+*        EVEN=YES/NO    IF REGISTER SPECS MUST BE EVEN  EXAMPLE M,D
+*            =DOUBLE    IF REGISTER MUST BE 0 OR 4 (ONLY FOR FLOATING)
+*        CLASS=(0,1,2,3)     TOGETHER WITH OP= DETERMINES OPERAND TYPES
+*                            OP   CLASS          OPERAND FORMAT
+*                            --   -----          --------------
+*                            RR     0       AR    R1,R2
+*                                   1       SPM   R1
+*                                   2       SVC   I
+*                                   3       BR    R2
+*                            RX     0       D     R1,ADDRX
+*                                   1       B     ADDRX
+*                            RS/SI  0       LM    R1,R3,ADDR
+*                                   1       SRDA  R1,ADDR
+*                                   2       CLI   ADDR,I
+*                                   3       HIO   ADDR
+*                            SS     0       AP    ADDR1(L1),ADDR2(L2)
+*                                   1       MVC   ADDR1(L),ADDR2
+*                                   2       XIO   ADDR1(I),ADDR2
+*                                   3       SRP   ADDR1(L1),ADDR2,I3
+*        LIT1=YES/NO    IF FIRST OPERAND MAY BE A LITERAL
+*        LIT23=YES/NO   IF SECOND AND THIRD OPERANDS MAY BE LITERALS
+******  FOLLOWING PARAMATERS NEEDED ONLY FOR ASSEM OPS
+*        UPC=YES/NO     UNINITIATED PRIVATE CODE
+*        STE=YES/NO     POSSIBLE SYMBOL TABLE ENTRY
+*        LCR=YES/NO     LOCATION COUNTER REFERENCE
+*        F7XREF=YES/NO  SPECIAL PHASE F7 CROSS-REFERENCE
+*        SUB=YES/NO     SUBSTITUTION REQUIRED
+*        F8UPC=YES/NO   PHASE F8 UNINITIATED PRIVATE CODE
+*
+*
+***********************************************************************
+*
+*                  IMPORTANT NOTE
+*
+*        TO ADD A NEW INSTRUCTION TO THE ASSEMBLER YOU
+*         MUST NOT ONLY ADD AN NEW INST TO AN ASMGISXX MODULE,
+*            BUT YOU SHOULD ALSO ADD THE NEW INSTRUCTION TO THE TABLE
+*         AT THE END OF DECK ASMGF7X.
+***********************************************************************
+GLDICT   DC    X'00'     EXTRA BYTE REQUIRED FOR REL REF TO TABLE.
+         MEND
+./ ADD NAME=LINKCHK  0100-24030-24030-0038-00031-00031-00000-1050MAC 58
+         MACRO
+         LINKCHK
+         GBLB      &LINKCHK
+.*       THIS CODE VERIFIES THE VALIDITY OF THE CML
+         AIF       (NOT &LINKCHK).END
+.*       SAVE REGISTERS
+         STM       R8,R10,LSAV&SYSNDX
+.*       CHECK THE UP POINTERS
+         LA        R8,CORELIST
+         LR        R9,R8
+         LR        R10,R8
+         L         R9,FCPPTUP-FCP(0,R9)
+         L         R10,CMLPTUP-CML(0,R10)
+         CR        R10,R9
+         BNE       *-6
+         CR        R10,R8
+         BNE       *-16
+.*       CHECK THE DOWN POINTERS
+         L         R9,FCPPTDWN-FCP(0,R9)
+         L         R10,CMLPTDWN-CML(0,R10)
+         LA        R10,0(0,R10)
+         CR        R10,R9
+         BNE       *-10
+         CR        R10,R8
+         BNE       *-20
+.*       RESTORE REGISTERS
+         LM        R8,R10,LSAV&SYSNDX
+         CNOP      0,4
+         B         *+16
+LSAV&SYSNDX DC     3F'0'
+.END     MEND
+./ ADD NAME=LIST1EQU 0100-24030-24030-0038-00073-00073-00000-1050MAC 58
+         MACRO
+         LIST1EQU
+*
+*        SYMBOLIC DISPLACEMENTS INTO LIST1 IN ASMGASM
+*
+L1DCBADS EQU       0                   ADDRESSES OF DCBS
+L1SLIN   EQU       0                   .    OFFSET OF SYSLIN
+L1STERM  EQU       4                   .    OFFSET OF SYSTERM
+L1SUP    EQU       8                   .    OFFSET OF SYSUP
+L1SLIB   EQU       12                  .    OFFSET OF SYSLIB
+L1SIN    EQU       16                  .    OFFSET OF SYSIN
+L1SPRINT EQU       20                  .    OFFSET OF SYSPRINT
+L1SPUNCH EQU       24                  .    OFFSET OF SYSPUNCH
+L1SUT1   EQU       28                  .    OFFSET OF SYSUT1
+L1SUT2   EQU       32                  .    OFFSET OF SYSUT2
+L1SUT3   EQU       36                  .    OFFSET OF SYSUT3
+L1VACFL  EQU       L1DCBADS+10*4       VACANT FULL WORD AREA
+L1CTLPRM EQU       L1VACFL+4           CONTROL PROGRAM PARM ADDRESS
+L1TIMELM EQU       L1CTLPRM+4          EXECUTE TIME LIMIT
+L1LINECT EQU       L1TIMELM+4          LINES PER PAGE ON SYSPRINT
+L1PBYT1  EQU       L1LINECT+2          PARBYT1
+L1PBYT   EQU       L1PBYT1+1           PARBYT
+L1PBYT2  EQU       L1PBYT+1            PARBYT2
+L1PBYT3  EQU       L1PBYT2+1           PARBYT3
+L1SYNERR EQU       L1PBYT3+1           SYNAD EXIT ERROR SWITCHES
+L1IOERR  EQU       L1SYNERR+2          SYNAD EXIT ERROR COUNTS
+L1FINDCT EQU       L1IOERR+4           FINDS ON SYSLIB COUNT
+L1CALIGN EQU       L1FINDCT+4          OFFSET FOR MACRO COMMENTS
+L1BUFADR EQU       L1CALIGN+4          ADDR BUFFER ROUTINE IN BUFF
+L1DDNAM  EQU       L1BUFADR+4          TABLE OF DDNAMES
+L1PRDATE EQU       L1DDNAM+8*10        DATE IN EBCDIC
+L1UPCOND EQU       L1PRDATE+9          UPDATE CONDITION CODE
+L1ABEND  EQU       L1UPCOND+1          ABNORMAL ABEND ADDRESS
+L1LSETC  EQU       L1ABEND+8           DEFAULT SETC VARIABLE LENGTH
+L1COLCT  EQU       L1LSETC+1           COLUMN= COUNT FOR XREFS
+L1BUFERR EQU       L1COLCT+1           ADDR BUFF ERROR ROUTINE
+L1SINAD  EQU       L1BUFERR+4          SYSIN MONITOR ADDRESS
+L1FREEMN EQU       L1SINAD+12          FREEMAIN OPERANDS
+L1ISADDR EQU       L1FREEMN+8          ADDR IN INSTRUCTION SET MODULE
+L1ISNAME EQU       L1ISADDR+4          NAME OF INSTRUCTION SET MODULE
+L1PRTIME EQU       L1ISNAME+8          TIME IN EBCDIC
+L1BTCSUM EQU       L1PRTIME+8          BATCH SUMMARY NUMBER AND ADDRESS
+L1ASPARM EQU       L1BTCSUM+4          LENGTH AND ADDRESS OF SYSPARM
+L1SAVECC EQU       L1ASPARM+4          HIGHEST CONDITION CODE
+L1BLDL   EQU       L1SAVECC+8          BLDL TABLE OF MODULES
+L1LENBL  EQU       36                  LENGTH OF EACH BLDL ENTRY
+L1SINSW  EQU       L1BLDL+7*L1LENBL    SYSIN SWITCH
+L1RLSDTE EQU       L1SINSW+1           RELEASE DATE
+L1ASDATE EQU       L1RLSDTE+7          DATE IN INTERNAL CODE
+L1ASTIME EQU       L1ASDATE+8          TIME IN INTERNAL CODE
+L1VERMOD EQU       L1ASTIME+8          ASSEMBLER VERSION AND LEVEL
+L1JULDTE EQU       L1VERMOD+4          JULIAN DATE IN CHARACTER
+L1PID    EQU       L1JULDTE+6          ASSEMBLER PROGRAM I.D.
+L1TRSAVE EQU       L1PID+10            SYSTERM LINE DATA
+L1UTLINO EQU       L1TRSAVE+8          UPDATE FEATURE LINE NUMBER
+L1PAGENO EQU       L1UTLINO+4          PAGE NUMBER ON SYSPRINT
+L1LENMC  EQU       L1PAGENO+4          LENGTH OF MACRO DRCTRY D ALIGNED
+L1BOTMC  EQU       L1LENMC+4           BOTTOM OF MACRO DIRECTORY
+L1TOPMC  EQU       L1BOTMC+4           TOP ENTRY IN MACRO DIRECTORY
+L1OUTRTN EQU       L1TOPMC+4           COMMON OUTPUT ROUTINE
+L1DCBBLK EQU       94                  OFFSET UTILITY JFCB BLKSIZE
+L1DCBRCT EQU       96                  OFFSET OF RECORD COUNT IN DCB
+L1DCBLPT EQU       100                 OFFSET OF LAST RECORD POINTER
+L1DCBCC  EQU       104                 OFFSET OF OUTPUT CARRIAGE IND
+L1DCBPAD EQU       104                 OFFSET OF REAL GET/PUT ADDR
+L1DPTRTN EQU       L1OUTRTN+8          DUMMY SYSPRINT ROUTINE ADDR
+L1BLANKS EQU       L1DPTRTN+2          HEX ZERO AND BLANKS
+L1DBLK   EQU       L1BLANKS+134        ADDR OF DEBLOCK ROUTINE    V7A42
+L1$JOB   EQU       L1DBLK+8            EXECUTE JOB SEPARATOR      V7A42
+L1PATCH  EQU       L1$JOB+6            LIST1 PATCH AREA
+*
+         SPACE     2
+         MEND
+./ ADD NAME=LTAND    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTAND     &R,&S
+&L       L         &R,&S           LOAD AND
+         LTR       &R,&R           TEST AND
+         MEND
+./ ADD NAME=LTBNZ    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTBNZ     &R,&S,&B
+&L       LTAND     &R,&S           LOAD AND TEST AND
+         BNZ       &B              BRANCH NOT ZERO
+         MEND
+./ ADD NAME=LTBP     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTBP      &R,&S,&B
+&L       LTAND     &R,&S           LOAD AND TEST AND
+         BP        &B              BRANCH POSITIVE
+         MEND
+./ ADD NAME=LTBZ     0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTBZ      &R,&S,&B
+&L       LTAND     &R,&S           LOAD AND TEST AND
+         BZ        &B              BRANCH ZERO
+         MEND
+./ ADD NAME=LTBZR    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTBZR     &R,&S,&B
+&L       LTAND     &R,&S           LOAD AND TEST AND
+         BZR       &B              BRANCH ZERO REGISTER
+         MEND
+./ ADD NAME=LTRBNL   0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTRBNL    &R,&B
+&L       LTR       &R,&R           LOAD AND TEST REGISTER AND
+         BNL       &B              BRANCH NOT LOW
+         MEND
+./ ADD NAME=LTRBZ    0100-24030-24030-0038-00005-00005-00000-1050MAC 58
+         MACRO
+&L       LTRBZ     &R,&B
+&L       LTR       &R,&R           LOAD AND TEST REGISTER AND
+         BZ        &B              BRANCH ZERO
+         MEND
+./ ADD NAME=MESSAGE  0100-24030-24030-0038-00043-00043-00000-1050MAC 58
+         MACRO
+&S       MESSAGE   &M,&DCB=YES,&SAVE=YES,&TYPE=DEBUG,&CSECT=GSECT
+         GBLB      &NOTSTAT,&NOTBUG
+&S       DS        0H
+         AIF       ('&TYPE' EQ 'DEBUG').MES1
+         AIF       (&NOTSTAT).EXIT
+         AGO       .MES2
+.MES1    AIF       (&NOTBUG).EXIT
+.MES2    AIF      ('&SAVE' NE 'YES').MES3
+*        THIS MACRO PRINTS ONE LINE
+*        IT MUST BE COVERED BY A BASE REGISTER OTHER THAN 1,2,13,14,15
+         STM       14,15,SV&SYSNDX
+         L         15,AD&SYSNDX
+         USING     &CSECT,15
+         BAL       14,T0&SYSNDX
+&CSECT   CSECT
+T0&SYSNDX STM      13,2,SAVOUT1
+         LR        2,15
+         DROP      15
+         USING     &CSECT,2
+         LA        13,SAVOUT2
+.MES3    OPEN      (DCBOUT,(OUTPUT))
+         PUT       DCBOUT,MS&SYSNDX
+         CLOSE     (DCBOUT,)
+         FREEPOOL  DCBOUT
+         AIF       ('&SAVE' EQ 'NO').MES5
+         LM        13,2,SAVOUT1
+         DROP      2
+         BR        14
+.MES6    ANOP
+MS&SYSNDX DC       CL50&M
+         AIF       ('&DCB' EQ 'NO').MES7
+         DCBOUT
+.MES7    AIF       ('&SAVE' EQ 'NO').MES8
+&SYSECT  CSECT
+         LM        14,15,SV&SYSNDX
+.MES5    B         EX&SYSNDX
+         AIF       ('&SAVE' EQ 'NO').MES6
+SV&SYSNDX DS       2F
+AD&SYSNDX DC       A(&CSECT)
+.MES8    ANOP
+EX&SYSNDX DS       0H
+.EXIT    MEND
+./ ADD NAME=OPCD     0100-24030-24030-0038-00182-00182-00000-1050MAC 58
+         MACRO
+&LABEL   OPCD  &OP=XX,                                                 X
+               &TYPE=MACH,             ASSEM,EXTEN,                    X
+               &ILLGEN=NO,             YES,                            X
+               &NAME=,                 YES,NO,                         X
+               &OPND=,                 YES,NO,                         X
+               &IS=,                                                   X
+               &MASK=,                 ONLY IF EXTEN,                  X
+               &ALIGN=C,               H,F,D,               *          X
+               &CLASS=,                0,1,2,3,             *          X
+               &EVEN=NO,               YES,DOUBLE,          *ONLY      X
+               &FLOAT=NO,              YES,                 *FOR       X
+               &LIT1=NO,               YES,                 *MACHINE   X
+               &LIT23=NO,              YES                  *TYPES     X
+               &F7XREF=NO,             YES,       *ONLY                X
+               &F8UPC=NO,              YES,       *FOR                 X
+               &LCR=NO,                YES,       *ASSEM               X
+               &STE=NO,                YES,       *TYPES               X
+               &SUB=NO,                YES,       *                    X
+               &UPC=NO                 YES        *
+         GBLA      &VALUE,&GLENLAB(400),&GTXTO(400),&GTXASC(400)
+         GBLA      &GDIM,&ERROR,&FIRST
+         GBLB      &RPQ67,&SYM370
+         GBLC      &CHAR,&LASTLAB
+         GBLC      &GLABEL(400),&GOP(400)
+         LCLA      &S1,&TDIM,&W1
+         LCLC      &WC
+.*                 CHECK IF THIS IS FIRST TIME IN
+         AIF       (&FIRST NE 0).SKIP01
+         DEFCHAR
+&FIRST   SETA      1
+&LASTLAB SETC      '........'
+.SKIP01  ANOP
+.* DAN SKOMSKY 10/23/2007 CLEAN UP LOGIC TO TEST ALPHA ORDER  DS102307
+.* &WC   SETC      '&LABEL'.'       '(1,8)                    DS102307
+         AIF       (T'&LABEL EQ 'O').MNOTE1                   DS102307
+&WC      SETC      '&LABEL'.'.......'(1,7)                    DS102307
+&WC      SETC      '&WC'(1,8)                                 DS102307
+         AIF       ('&WC' GT '&LASTLAB').SKIP02
+         MNOTE     1,'OPCD -- OPCODE LABEL &LABEL OUT OF ALPHA ORDER'
+         MNOTE     *,'WC = &WC'
+         MNOTE     *,'LASTLAB = &LASTLAB'
+.SKIP02  ANOP
+.* DAN SKOMSKY 10/23/2007 CLEAN UP LOGIC TO TEST ALPHA ORDER  DS102307
+.*       MNOTE     *,'WC = &WC'            <== DEBUG     ONLY DS102307
+.*       MNOTE     *,'LASTLAB = &LASTLAB'  <==       USE      DS102307
+&LASTLAB SETC      '&WC'
+.*                 DETERMINE IF OPCODE IN THIS SET
+         AIF       ('&IS' EQ '').OPOK
+&W1      SETA      N'&IS
+         AIF       (&W1 EQ 1).SINGTST
+.SKIP03  AIF       ('&IS(&W1)' NE '67').TST70
+         AIF       (&RPQ67).OPOK
+         AGO       .TSTEND
+.TST70   AIF       ('&IS(&W1)' NE '70').OPOK
+         AIF       (&SYM370).OPOK
+.TSTEND  ANOP
+&W1      SETA      &W1-1
+         AIF       (&W1 GT 0).SKIP03
+         AGO       .NOTGEND
+.SINGTST ANOP
+.*                 TEST IF MOD 67 RPQ INSTRUCTION
+         AIF       (('&IS' EQ '67') AND (NOT &RPQ67)).NOTGEND
+.*                 TEST IF 370 INSTRUCTION
+         AIF       (('&IS' EQ '70') AND (NOT &SYM370)).NOTGEND
+.OPOK    ANOP
+.*                 SET LABEL AND OPCODE
+&TDIM    SETA      &GDIM+1
+&W1      SETA      K'&LABEL
+         AIF       (&W1 EQ 0).MNOTE1
+&GLENLAB(&TDIM) SETA &W1
+&GLABEL(&TDIM) SETC '&LABEL'
+         AIF       ('&OP' EQ 'XX').MNOTE5
+&GOP(&TDIM) SETC '&OP'
+.*                 CHECK THE INSTRUCTION TYPE
+         AIF       ('&TYPE' NE 'ASSEM').TXTO1
+&S1      SETA      X'80'
+         AGO       .TXTOF
+.TXTO1   AIF       ('&TYPE' NE 'MACH').TXTO2
+&S1      SETA      X'40'
+         AGO       .TXTOF
+.TXTO2   AIF       ('&TYPE' NE 'EXTEN').MNOTE2
+&S1      SETA      X'60'
+.TXTOF   ANOP
+.*                 IS OPCODE ILLEGAL IF GENNED .Q
+         AIF       ('&ILLGEN' EQ 'NO').TXRM0
+         AIF       ('&TYPE' NE 'ASSEM').MNOTE9
+&S1      SETA      &S1+X'20'
+.*                 NAME REQUIRED OR NOT ALLOWED
+.TXRM0   AIF       ('&TYPE' EQ 'EXTEN').TXRM7
+         AIF       ('&NAME' EQ '').TXRM3
+         AIF       ('&NAME' NE 'YES').TXRM2
+&S1      SETA      &S1+X'08'
+         AGO       .TXRM3
+.TXRM2   AIF       ('&NAME' NE 'NO').MNOTE3
+&S1      SETA      &S1+X'04'
+.*                 OPERAND REQUIRED OR NOT ALLOWED
+.TXRM3   AIF       ('&OPND' EQ '').TXRM8
+         AIF       ('&OPND' NE 'YES').TXRM5
+&S1      SETA      &S1+X'02'
+         AGO       .TXRM8
+.TXRM5   AIF       ('&OPND' NE 'NO').MNOTE4
+&S1      SETA      &S1+X'01'
+         AGO       .TXRM8
+.*                 SET EXTEN MASK
+.TXRM7   ANOP
+         AIF       ('&MASK' EQ '').MNOTE6
+&W1      SETA      K'&MASK
+&CHAR    SETC      '&MASK'(&W1,1)
+         TRANSLAT
+&S1      SETA      &S1+&VALUE
+.TXRM8   ANOP
+&GTXTO(&TDIM) SETA &S1
+.*                 TEST IF ASSEM OR NOT
+&S1      SETA      0
+         AIF       ('&TYPE' NE 'ASSEM').MACH1
+         AIF       ('&UPC' EQ 'NO').ASSEM1
+&S1      SETA      &S1+X'80'
+.ASSEM1  AIF       ('&STE' EQ 'NO').ASSEM2
+&S1      SETA      &S1+X'40'
+.ASSEM2  AIF       ('&LCR' EQ 'NO').ASSEM3
+&S1      SETA      &S1+X'20'
+.ASSEM3  AIF       ('&F7XREF' EQ 'NO').ASSEM4
+&S1      SETA      &S1+X'10'
+.ASSEM4  AIF       ('&SUB' EQ 'NO').ASSEM5
+&S1      SETA      &S1+X'08'
+.ASSEM5  AIF       ('&F8UPC' EQ 'NO').SET1
+&S1      SETA      &S1+X'01'
+         AGO       .SET1
+.*                 MACHINE OR EXTEN INSTRUCTION
+.MACH1   AIF       ('&FLOAT' EQ 'NO').MACH2
+&S1      SETA      &S1+X'80'
+.MACH2   AIF       ('&EVEN' EQ 'NO').MACH3
+         AIF       ('&EVEN' EQ 'DOUBLE').MACH3
+&S1      SETA      &S1+X'40'
+.MACH3   AIF       ('&ALIGN' EQ 'C').MACH6
+         AIF       ('&ALIGN' NE 'H').MACH4
+&S1      SETA      &S1+X'10'
+         AGO       .MACH6
+.MACH4   AIF       ('&ALIGN' NE 'F').MACH5
+&S1      SETA      &S1+X'20'
+         AGO       .MACH6
+.MACH5   AIF       ('&ALIGN' NE 'D').MNOTE7
+&S1      SETA      &S1+X'30'
+.MACH6   ANOP
+         AIF       ('&CLASS' EQ '').MNOTE8
+&W1      SETA      &CLASS
+         AIF       (&W1 GT 3 OR &W1 LT 0).MNOTE8
+&S1      SETA      &S1+&W1*4
+         AIF       ('&LIT23' EQ 'NO').MACH7
+&S1      SETA      &S1+X'02'
+.MACH7   AIF       ('&LIT1' EQ 'NO').SET1
+&S1      SETA      &S1+X'01'
+.*                 SET TXASC BYTE
+.SET1    ANOP
+&GTXASC(&TDIM) SETA &S1
+&GDIM    SETA      &GDIM+1
+         MEXIT
+.NOTGEND MNOTE     *,'OPCD  --  OPCODE NOT GENERATED IS= &IS'
+         AGO       .MEND
+.*                 THESE ARE THE ERRORS
+.MNOTE1  MNOTE     4,'OPCD -- MISSING LABEL'
+         AGO       .MENDERR
+.MNOTE2  MNOTE     4,'OPCD -- INVALID TYPE=&TYPE'
+         AGO       .MENDERR
+.MNOTE3  MNOTE     4,'OPCD -- INVALID NAME=&NAME'
+         AGO       .MENDERR
+.MNOTE4  MNOTE     4,'OPCD -- INVALID OPND=&OPND'
+         AGO       .MENDERR
+.MNOTE5  MNOTE     4,'OPCD -- MISSING &&OP KEYWORD'
+         AGO       .MENDERR
+.MNOTE6  MNOTE     4,'OPCD -- MISSING &&MASK FOR EXTEN'
+         AGO       .MENDERR
+.MNOTE7  MNOTE     4,'OPCD -- INVALID ALIGN=&ALIGN'
+         AGO       .MENDERR
+.MNOTE8  MNOTE     4,'OPCD -- INVALID CLASS=&CLASS'
+         AGO       .MENDERR
+.MNOTE9  MNOTE     4,'OPCD  --  ILLGEN=&ILLGEN INVALID WITH TYPE=&TYPE'
+         AGO       .MENDERR
+.MENDERR ANOP
+&ERROR   SETA      &ERROR+1
+.MEND    MEND
+./ ADD NAME=OPCDGEN  0100-24030-24030-0038-00053-00053-00000-1050MAC 59
+         MACRO
+         OPCDGEN
+         GBLA      &GLENLAB(400),&GTXTO(400),&GTXASC(400)
+         GBLA      &GDIM,&ERROR,&FIRST,&VALUE
+         GBLC      &GLABEL(400),&GOP(400),&CHAR
+         LCLA      &I,&J,&W,&OPLX,&OPPT(400)
+         LCLC      &C(8),&WC
+         ACTR      100000
+         AIF       (&FIRST EQ 0 OR &GDIM LE 1 OR &ERROR GT 0).MNOTE1
+.LOOP0   ANOP
+&I       SETA      &I+1
+&OPPT(&I) SETA     &I
+         AIF       (&I LT &GDIM).LOOP0
+&I       SETA      0
+.*                 BUBBLE SORT OPCODES BY NAME AND LENGTH
+.LOOP1   ANOP
+&I       SETA      &I+1
+&J       SETA      &I
+.LOOP2   ANOP
+&J       SETA      &J+1
+         AIF       ('&GLABEL(&I)' LT '&GLABEL(&J)').LOOP3
+&W       SETA      &OPPT(&I)
+&WC      SETC      '&GLABEL(&I)'
+&OPPT(&I) SETA     &OPPT(&J)
+&GLABEL(&I) SETC   '&GLABEL(&J)'
+&OPPT(&J) SETA     &W
+&GLABEL(&J) SETC   '&WC'
+.LOOP3   AIF       (&J LT &GDIM).LOOP2
+         AIF       (&I LT (&GDIM-1)).LOOP1
+.*                 OUTPUT RESULTS
+&I       SETA      0
+.OUTLP1  ANOP
+&I       SETA      &I+1
+&J       SETA      &OPPT(&I)
+&W       SETA      0
+         AIF       (&GLENLAB(&J) EQ &OPLX).OUTLP2
+&OPLX    SETA      &GLENLAB(&J)
+OPL&OPLX EQU       *
+.*                 TRANSLATE OPCODE TO INTERNAL CODE
+.OUTLP2  ANOP
+&W       SETA      &W+1
+&CHAR    SETC      '&GLABEL(&I)'(&W,1)
+&C(&W)   SETC      'I&CHAR,'
+         AIF       (&W LT &OPLX).OUTLP2
+&WC      SETC      '##'.'&GLABEL(&I)'
+&WC      DC        AL1(&C(1)&C(2)&C(3)&C(4)&C(5)&C(6)&C(7)&C(8)&GTXTO(&*
+               J)),X'&GOP(&J)',AL1(&GTXASC(&J))
+         AIF       (&I LT &GDIM).OUTLP1
+OPFN     EQU       *
+         AGO       .MEND
+.MNOTE1  MNOTE     8,'OPCDGEN -- OPCD MACROS FAILED'
+         MNOTE     8,'OPCDGEN -- YOU LOSE ...... AGAIN'
+.MEND    MEND
+./ ADD NAME=PRINTOUT 0100-24030-24030-0038-00044-00044-00000-1050MAC 59
+         MACRO
+&S       PRINTOUT  &M,&DCB=YES,&SAVE=YES,&TYPE=DEBUG,&CSECT=GSECT
+         GBLB      &NOTSTAT,&NOTBUG
+&S       DS        0H
+         AIF       ('&TYPE' EQ 'DEBUG').MES1
+         AIF       (&NOTSTAT).EXIT
+         AGO       .MES2
+.MES1    AIF       (&NOTBUG).EXIT
+.MES2    AIF      ('&SAVE' NE 'YES').MES3
+*        THIS MACRO PRINTS ONE LINE
+*        IT MUST BE COVERED BY A BASE REGISTER OTHER THAN 1,2,13,14,15
+         STM       14,15,SV&SYSNDX
+         L         15,AD&SYSNDX
+         USING     &CSECT,15
+         BAL       14,T0&SYSNDX
+&CSECT   CSECT
+T0&SYSNDX STM      13,2,SAVOUT1
+         LR        2,15
+         DROP      15
+         USING     &CSECT,2
+         LA        13,SAVOUT2
+.MES3    OPEN      (DCBOUT,(OUTPUT))
+         PUT       DCBOUT,&M
+         CLOSE     (DCBOUT,)
+         FREEPOOL  DCBOUT
+         AIF       (('&SAVE' EQ 'NO') AND ('&DCB' EQ 'NO')).EXIT
+         AIF       ('&SAVE' EQ 'NO').MES5
+         LM        13,2,SAVOUT1
+         DROP      2
+         BR        14
+         AIF       ('&DCB' EQ 'NO').MES6
+         DCBOUT
+.MES6    ANOP
+&SYSECT  CSECT
+         LM        14,15,SV&SYSNDX
+         B         EX&SYSNDX
+SV&SYSNDX DS       2F
+AD&SYSNDX DC       A(&CSECT)
+         AGO       .MES7
+.MES5    B         EX&SYSNDX
+         DCBOUT
+.MES7    ANOP
+EX&SYSNDX DS       0H
+.EXIT    MEND
+./ ADD NAME=PRNT     0100-88153-88153-1259-00044-00044-00000-1050MAC 00
+         MACRO
+&LABEL   PRNT      &OUTPUT,&NUMBER=8
+         LCLA      &TNUM
+&TNUM    SETA      &NUMBER
+         AIF       (&TNUM GE 1).NEXT1
+         MNOTE     0,'NUMBER PARAMETER WAS TOO SMALL'
+&TNUM    SETA      1
+.NEXT1   AIF       (&TNUM LE 10).NEXT2
+         MNOTE     0,'NUMBER PARAMETER WAS TOO BIG'
+&TNUM    SETA      10
+.NEXT2   ANOP
+&LABEL   STM       0,3,ZZZZTEMP        SAVE FOUR WORK REGISTERS
+         LA        14,&OUTPUT          GET ADDRESS OF SOURCE
+         MVI       ZZOUTPUT,C' '       BLANK OUTPUT FIELD
+         MVC       ZZOUTPUT+1(132),ZZOUTPUT THE WHOLE FIELD
+         LA        15,ZZOUTPUT         POINTER TO OUTPUT FIELD
+         SR        3,3                 ZERO A NUMBER COUNT
+.LOOP1   L         2,0(,14)            GET A NUMBER FOR OUTPUT
+         LTR       2,2                 TEST ITS SIGN
+         BNL       *+12 .LOOP2         IS IT POSITIVE
+         MVI       2(15),C'-'          NO IT IS NEGATIVE
+         B         *+8 .LOOP3          BRANCH AROUND
+.LOOP2   MVI       2(15),C'+'          IT IS POSITIVE
+.LOOP3   CVD       2,ZZZDUMMY          CONVERT TO DECIMAL
+         UNPK      3(10,15),ZZZDUMMY   CONVERT IT TO ZONED
+         OI        12(15),X'F0'        SET ZONE SIGN POSITIVE
+         LA        14,4(,14)           INCREMENT SOURCE FIELD
+         LA        15,12(,15)          INCREMENT TARGET FIELD
+         LA        3,1(,3)             INCREMENT NUMBER OF NUMBERS
+         LA        2,&TNUM             GET TOTAL NUMBER OF NUMBERS
+         CR        3,2                 ARE WE DONE .Q
+         BNE       *-54 .LOOP1         NO, DO NEXT NUMBER
+         L         3,ZZZLINES          GET LINES LEFT ON PAGE
+         BCT       3,*+12 .LOOP4       DECREMENT AND TEST
+         LA        3,50                RESTORE PAGE SIZE
+         MVI       ZZOUTPUT,C'1'       SKIP TO NEW PAGE
+.LOOP4   ST        3,ZZZLINES          UPDATE LINES LEFT COUNT
+         L         1,ZZZZSAVE          POINT TO ASMG DCB LIST
+         L         1,20(,1)            GET SYSPRINT DCB ADDRESS
+         LA        0,ZZOUTPUT          POINT TO OUTPUT LINE
+         L         15,48(,1)           GET PUT ADDRESS FROM DCB
+         BALR      14,15               DO THE PUT
+         LM        0,3,ZZZZTEMP        RESTORE WORK REGISTERS
+         MEND
+./ ADD NAME=PUTT     0100-24030-24030-0038-00045-00045-00000-1050MAC 59
+         MACRO
+&LABEL   PUTT      &A,&LENGTH=121
+         LCLA      &TLEN
+&TLEN    SETA      &LENGTH
+         AIF       (&TLEN GE 1).NEXT1
+         MNOTE     0,'LENGTH PARAMETER TOO SMALL'
+&TLEN    SETA      121
+.NEXT1   AIF       (&TLEN LE 133).NEXT2
+         MNOTE     0,'LENGTH PARAMETER WAS TOO BIG'
+&TLEN    SETA      133
+.NEXT2   ANOP
+&LABEL   STM       0,3,ZZZZTEMP        SAVE SOME WORK REGISTERS
+         MVI       ZZOUTPUT,C' '       INITIALIZE THE OUTPUT AREA
+         MVC       ZZOUTPUT+1(132),ZZOUTPUT ALL OF IT
+         MVC       ZZOUTPUT(&LENGTH),&A MOVE OUTPUT LINE
+         L         3,ZZZLINES          LOAD NUMBER OF LINES LEFT
+         CLI       ZZOUTPUT,C'1'       NEW PAGE .Q
+         BNE       *+12 .LOOP1         BRANCH IF NO
+         LA        3,1                 ZERO THE LINES LEFT
+         B         *+44 .LOOP5         GO PUT IT OUT
+.LOOP1   CLI       ZZOUTPUT,C'-'       TRIPLE SPACE .Q
+         BNE       *+10 .LOOP2         BRANCH IF NOT
+         BCTR      3,0                 DECREASE LINES BY ONE
+         B         *+12 .LOOP3         BRANCH
+.LOOP2   CLI       ZZOUTPUT,C'0'       DOUBLE SPACE .Q
+         BNE       *+10 .LOOP4         BRANCH IF NOT
+.LOOP3   BCTR      3,0                 DECREASE LINES BY ONE
+         B         *+16 .LOOP5         BRANCH
+.LOOP4   CLI       ZZOUTPUT,C'+'       NO SPACE AT ALL .Q
+         BNE       *+8 .LOOP5          BRANCH IF NOT
+         B         *+28 .LOOP6         BRANCH TO SINGLE SPACE
+.LOOP5   BCTR      3,0                 DECREASE LINES BY ONE
+         ST        3,ZZZLINES          UPDATE CURRENT LINE COUNT
+         LTR       3,3                 TEST LINES LEFT
+         BP        *+16 .LOOP6         BRANCH IF SOME LEFT
+         LA        3,50                RESTORE PAGE COUNT
+         ST        3,ZZZLINES          AND STORE IT
+         MVI       ZZOUTPUT,C'1'       NEW PAGE
+.LOOP6   L         1,ZZZZSAVE          POINTER TO ASMG DCB LIST
+         L         1,20(,1)            SYSPRINT DCB ADDRESS
+         LA        0,ZZOUTPUT          OUTPUT POINTER
+         L         15,48(,1)           LOAD PUT ADDRESS FROM DCB
+         BALR      14,15               DO THE PUT
+         LM        0,3,ZZZZTEMP        RESTORE WORK REGISTERS
+         MEND
+./ ADD NAME=RD       0100-24030-24030-0038-00044-00044-00000-1050MAC 59
+         MACRO
+&LABEL   RD        &INPUT,&NUMBER=8,&EOF=
+         LCLA      &TNUM
+&TNUM    SETA      &NUMBER
+         AIF       (&TNUM GE 1).NEXT1
+         MNOTE     0,'NUMBER PARAMETER WAS TOO SMALL'
+&TNUM    SETA      1
+.NEXT1   AIF       (&TNUM LE 8).NEXT2
+         MNOTE     0,'NUMBER PARAMETER WAS TOO BIG'
+&TNUM    SETA      8
+.NEXT2   ANOP
+&LABEL   STM       0,3,ZZZZTEMP        SAVE WORK REGISTERS
+         L         1,ZZZZSAVE          POINTER TO ASMG DCB LIST
+         L         1,16(,1)            POINT TO SYSIN DCB
+         AIF       (K'&EOF EQ 0).NOEOF
+         MVC       ZZZDUMMY(3),33(1)   SAVE GLOBAL EODAD EXIT
+         LR        2,1                 REMEMBER DCB ADDR OVER GET
+         MVC       33(3,1),=AL3(&EOF)  MODIFY THE SYSIN EODAD
+.NOEOF   ANOP
+         LA        0,ZZZINPUT          POINT TO MY INPUT AREA
+         L         15,48(,1)           LOAD GET ADDRESS FROM DCB
+         BALR      14,15               DO THE GET
+         AIF       (K'&EOF EQ 0).NOEOD WAS EOF SPECIFIED
+         MVC       33(3,2),ZZZDUMMY    RESTORE EODAD ADDRESS
+.NOEOD   ANOP
+         SR        3,3                 ZERO A NUMBER COUNTER
+         LA        14,ZZZINPUT         POINT TO CARD IMAGE
+         LA        15,&INPUT           POINT TO TARGET
+.LOOP1   NI        9(14),X'0F'         REMOVE THE SIGN
+         CLI       0(14),C'-'          IS NUMBER NEGATIVE
+         BNE       *+8 .LOOP2          NO
+         OI        9(14),X'D0'         MAKE IT NEGATIVE
+.LOOP2   OI        9(14),X'C0'         MAKE IT POSITIVE
+         PACK      ZZZDUMMY,1(9,14)    CONVERT TO DECIMAL
+         CVB       2,ZZZDUMMY          CONVERT TO BINARY
+         ST        2,0(,15)            ENTER NUMBER IN TARGET
+         LA        15,4(,15)           INCREMENT TARGET
+         LA        14,10(,14)          INCREMENT CARD FIELD
+         LA        3,1(,3)             INCREMENT NUMBER COUNT
+         LA        2,&TNUM             GET TOTAL NUMBER TO BE CONVERTED
+         CR        3,2                 ARE WE DONE .Q
+         BNE       *-52 .LOOP1         NO, DO NEXT NUMBER
+         LM        0,3,ZZZZTEMP        RESTORE WORK REGISTERS
+         MEND
+./ ADD NAME=REF      0100-24030-24030-0038-00009-00009-00000-1050MAC 59
+         MACRO
+         REF
+         LCLA      &WORK
+&WORK    SETA      1
+.LOOP    AIF       (T'&SYSLIST(&WORK) EQ 'O').EXIT
+         DS        0AL4(&SYSLIST(&WORK))
+&WORK    SETA      &WORK+1
+         AGO       .LOOP
+.EXIT    MEND
+./ ADD NAME=SETM     0100-24030-24030-0038-00028-00028-00000-1050MAC 59
+         MACRO
+         SETM
+         LCLC      &B1(8),&B2(8),&B3
+         LCLA      &WORK,&BITPT
+.*       INITIALIZE &B2 TO '1'S AND &B1 TO NUMBERS
+.LOOP1   ANOP
+&B1(&WORK+1) SETC  '&WORK'
+&B2(&WORK+1) SETC  '1'
+&WORK    SETA      &WORK+1
+         AIF       (&WORK LE 7).LOOP1
+.*       ADD AND RIPPLE
+.LOOP2   ANOP
+&BITPT   SETA      1
+.LOOP3   AIF       ('&B2(&BITPT)' EQ '1').ADD
+&B2(&BITPT) SETC   '1'
+&WORK    SETA      &BITPT-1
+&B1(&BITPT) SETC   '&WORK'
+&BITPT   SETA      &BITPT+1
+         AIF       (&BITPT EQ 9).EXIT
+         AGO       .LOOP3
+.ADD     ANOP
+&B2(&BITPT) SETC   '0'
+&B1(&BITPT) SETC   ''
+.*       GENERATE THE EQU
+&B3      SETC      '&B2(1)&B2(2)&B2(3)&B2(4)&B2(5)&B2(6)&B2(7)&B2(8)'
+M&B1(1)&B1(2)&B1(3)&B1(4)&B1(5)&B1(6)&B1(7)&B1(8)    EQU     B'&B3'
+         AGO       .LOOP2
+.EXIT    MEND
+./ ADD NAME=SETN     0100-24030-24030-0038-00028-00028-00000-1050MAC 59
+         MACRO
+         SETN
+         LCLC      &B1(8),&B2(8),&B3
+         LCLA      &WORK,&BITPT
+.*       INITIALIZE &B2 TO '0'S AND &B1 TO NUMBERS
+.LOOP1   ANOP
+&B1(&WORK+1) SETC  '&WORK'
+&B2(&WORK+1) SETC  '0'
+&WORK    SETA      &WORK+1
+         AIF       (&WORK LE 7).LOOP1
+.*       ADD AND RIPPLE
+.LOOP2   ANOP
+&BITPT   SETA      1
+.LOOP3   AIF       ('&B2(&BITPT)' EQ '0').ADD
+&B2(&BITPT) SETC   '0'
+&WORK    SETA      &BITPT-1
+&B1(&BITPT) SETC   '&WORK'
+&BITPT   SETA      &BITPT+1
+         AIF       (&BITPT EQ 9).EXIT
+         AGO       .LOOP3
+.ADD     ANOP
+&B2(&BITPT) SETC   '1'
+&B1(&BITPT) SETC   ''
+.*       GENERATE THE EQU
+&B3      SETC      '&B2(1)&B2(2)&B2(3)&B2(4)&B2(5)&B2(6)&B2(7)&B2(8)'
+N&B1(1)&B1(2)&B1(3)&B1(4)&B1(5)&B1(6)&B1(7)&B1(8)    EQU     B'&B3'
+         AGO       .LOOP2
+.EXIT    MEND
+./ ADD NAME=SETR     0100-24030-24030-0038-00009-00009-00000-1050MAC 59
+         MACRO
+         SETR
+         LCLA      &A
+&A       SETA      0
+.S       ANOP
+R&A      EQU       &A
+&A       SETA      &A+1
+         AIF       (&A NE 16).S
+         MEND
+./ ADD NAME=SETX     0100-24030-24030-0038-00011-00011-00000-1050MAC 59
+         MACRO
+         SETX
+         LCLA      &A
+&A       SETA      1
+.S       ANOP
+XR&A     DSECT
+         USING     XR&A,R&A
+&A       SETA      &A+1
+         AIF       (&A NE 16).S
+&SYSECT  CSECT
+         MEND
+./ ADD NAME=SNAPDATA 0100-24030-24030-0038-00011-00011-00000-1050MAC 59
+         MACRO
+&NAME    SNAPDATA  &ADDR=,&LENGTH=
+         GBLB      &NOTBUG
+&NAME    DS        0H
+         AIF       (&NOTBUG).MEND
+         ST        &ADDR,SARG&SYSNDX
+         ST        &LENGTH,SARG&SYSNDX+4
+         CNOP      0,4
+         BAL       R8,SNAPDATA
+SARG&SYSNDX DS     2F
+.MEND    MEND
+./ ADD NAME=SNAPOUT  0100-24030-24030-0038-00084-00084-00000-1050MAC 59
+         MACRO
+&L       SNAPOUT   &A,&B,&C,&D,&E,&F,&G,&H,&I,&J,&K,&M,&N,&TYPE=DEBUG
+         GBLB      &OPEN1              SET TO 1 FOR SINGLE OPEN
+         GBLB      &NOTSTAT,&NOTBUG
+         GBLA      &SNAPCNT
+         LCLA      &OPNUM
+         LCLC      &WORK
+&L       DS        0H
+         AIF       ('&TYPE' EQ 'DEBUG').MES1
+         AIF       (&NOTSTAT).EXIT
+         AGO       .MES2
+.MES1    AIF       (&NOTBUG).EXIT
+.MES2    ANOP
+&OPNUM   SETA      1
+.*       GENERATE CODING
+.LOOP    AIF       (N'&SYSLIST(&OPNUM) EQ 0).CON
+&WORK    SETC     '&SYSLIST(&OPNUM)'
+         AIF       ('&WORK'(1,1) EQ '''').LOOP1
+         AIF       ('&WORK'(1,1) NE '(').SYMBOL
+         ST        &WORK,SNAP$1
+         AGO       .UNPACK
+.SYMBOL  MVC       SNAP$1(4),&SYSLIST(&OPNUM)
+.UNPACK  UNPK        DC&OPNUM&SYSNDX.(9),SNAP$1(5)
+         NC        DC&OPNUM&SYSNDX.(9),SNAP$7
+         TR        DC&OPNUM&SYSNDX.(8),SNAP$8
+.LOOP1   ANOP
+&OPNUM   SETA      &OPNUM+1
+         AGO       .LOOP
+.CON     STM       13,1,SNAP$4
+         LM        13,14,AD&SYSNDX
+         BAL       1,SNAP$0
+         LM        13,1,SNAP$4
+         B         EX&SYSNDX
+&OPNUM   SETA      1
+.*       GENERATE DC
+DC&SYSNDX EQU      *+1
+.LOOP2   AIF       (N'&SYSLIST(&OPNUM) EQ 0).END
+&WORK    SETC     '&SYSLIST(&OPNUM)'
+         DC        C' '
+         AIF       ('&WORK'(1,1) NE '''').PAREN
+         DC        C&SYSLIST(&OPNUM)
+         AGO       .LOOP3
+.PAREN   ANOP
+DC&OPNUM&SYSNDX DS 8C
+.LOOP3   ANOP
+&OPNUM   SETA      &OPNUM+1
+         AGO       .LOOP2
+.END     ANOP
+ND&SYSNDX DS       C
+AD&SYSNDX DC       A(DC&SYSNDX,ND&SYSNDX-DC&SYSNDX-1)
+         AIF       (&SNAPCNT NE 0).GO
+.*       GENERATE OUTPUT ROUTINE ONCE
+*        THIS MUST BE COVERED BY A BASE REGISTER OTHER THAN 1,13,14,15
+SNAP$0   MVI       SNAP$2,C' '
+         MVC       SNAP$2+1(119),SNAP$2
+         EX        14,SNAP$3
+         ST        1,SNAP$5
+         LA        13,SNAP$6
+         AIF       (NOT &OPEN1).OPEN
+         TM        SNAP$9+48,X'10'     TEST IF OPEN
+         BO        SNAP$PUT
+.OPEN    OPEN      (SNAP$9,(OUTPUT))
+SNAP$PUT PUT       SNAP$9,SNAP$2
+         AIF       (&OPEN1).NOCLOSE
+         CLOSE     (SNAP$9,)
+         FREEPOOL  SNAP$9
+.NOCLOSE L         1,SNAP$5
+         BR        1
+SNAP$9   DCB       DSORG=PS,MACRF=(PMC),DDNAME=STATDBUG,DEVD=PR,       X
+               PRTSP=1,RECFM=F,LRECL=120,BLKSIZE=120,BFTEK=S,          X
+               BUFNO=1,BUFL=120,EROPT=ACC
+SNAP$8   DC        C'0123456789ABCDEF'
+SNAP$7   DC        X'0F0F0F0F0F0F0F0F',C' '
+SNAP$6   DS        18F
+SNAP$5   DS        F
+SNAP$4   DS        5F
+SNAP$3   MVC       SNAP$2(*-*),0(13)
+SNAP$2   DS        120C
+SNAP$1   DS        F
+         DC        X'FF'
+.GO      ANOP
+EX&SYSNDX DS       0H
+&SNAPCNT SETA      &SNAPCNT+1
+.EXIT    MEND
+./ ADD NAME=TIMEOUT  0100-24030-24030-0038-00044-00044-00000-1050MAC 59
+         MACRO
+&S       TIMEOUT   &M,&DCB=YES,&CSECT=GSECT
+         GBLB      &NOTSTAT
+&S       DS        0H
+         AIF        (&NOTSTAT).EXIT
+*                  THIS MACRO PRINTS THE TIME
+*        IT MUST BE COVERED BY A BASE REGISTER OTHER THAN 1,2,13,14,15
+         STM       14,15,SV&SYSNDX
+         L         15,AD&SYSNDX
+         USING     &CSECT,15
+         BAL       14,T0&SYSNDX
+&CSECT   CSECT
+T0&SYSNDX STM      13,2,SAVOUT1
+         LR        2,15
+         DROP      15
+         USING     &CSECT,2
+         LA        13,SAVOUT2
+          TIME     BIN
+         CVD       0,T1&SYSNDX
+         MVC       T3&SYSNDX,T4&SYSNDX
+         ED        T3&SYSNDX,T1&SYSNDX+3
+         PRINTOUT T2&SYSNDX,DCB=&DCB,SAVE=NO,TYPE=STAT
+         LM        13,2,SAVOUT1
+         DROP      2
+         BR        14
+T1&SYSNDX DS       D
+T2&SYSNDX DC       50C' '
+         ORG       T2&SYSNDX
+         DC        C&M
+         DC        C' AT TIME ='
+T3&SYSNDX DS       CL11
+         DC        C' SECONDS'
+         ORG       T2&SYSNDX+50
+T4&SYSNDX DC       C' '
+         DC        X'20202020202120'
+         DC        C'.'
+         DC        X'2020'
+&SYSECT  CSECT
+         LM        14,15,SV&SYSNDX
+         B         EX&SYSNDX
+SV&SYSNDX DS       2F
+AD&SYSNDX DC       A(&CSECT)
+EX&SYSNDX DS       0H
+.EXIT    MEND
+./ ADD NAME=TMBNZ    0100-24030-24030-0038-00005-00005-00000-1050MAC 59
+         MACRO
+&L       TMBNZ     &S,&M,&B
+&L       TM        &S,&M           TEST UNDER MASK AND
+         BNZ       &B              BRANCH NOT ZERO
+         MEND
+./ ADD NAME=TMBZ     0100-24030-24030-0038-00005-00005-00000-1050MAC 59
+         MACRO
+&L       TMBZ      &S,&M,&B
+&L       TM        &S,&M           TEST UNDER MASK AND
+         BZ        &B              BRANCH ZERO
+         MEND
+./ ADD NAME=TMBZR    0100-24030-24030-0038-00005-00005-00000-1050MAC 59
+         MACRO
+&L       TMBZR     &S,&M,&R
+&L       TM        &S,&M           TEST UNDER MASK AND
+         BZR       &R              BRANCH ZERO REGISTER
+         MEND
+./ ADD NAME=TMRBNZ   0100-24030-24030-0038-00006-00006-00000-1050MAC 59
+         MACRO
+&L       TMRBNZ    &R,&M,&B
+&L       STC       &R,*+5          TEST UNDER
+         TM        =AL1(&M),*-*    MASK REGISTER AND
+         BNZ       &B              BRANCH NOT ZERO
+         MEND
+./ ADD NAME=TMRBZ    0100-24030-24030-0038-00006-00006-00000-1050MAC 59
+         MACRO
+&L       TMRBZ     &R,&M,&B
+&L       STC       &R,*+5          TEST UNDER
+         TM        =AL1(&M),*-*    MASK REGISTER AND
+         BZ        &B              BRANCH ZERO
+         MEND
+./ ADD NAME=TRANSLAT 0100-24030-24030-0038-00015-00015-00000-1050MAC 59
+         MACRO
+         TRANSLAT
+         GBLA      &EBDIC(64),&NUMCHAR,&VALUE
+         GBLC      &CHARSET(64),&CHAR
+         LCLA      &I
+&I       SETA      0
+.ADDR10  ANOP
+&I       SETA      &I+1
+         AIF   ('&CHAR'(1,1) EQ '&CHARSET(&I)'(1,1)).ADDR20
+         AIF       (&I LT &NUMCHAR).ADDR10
+&VALUE   SETA      0
+         AGO       .END
+.ADDR20  ANOP
+&VALUE   SETA      &EBDIC(&I)
+.END     MEND
+./ ADD NAME=UPEMSG   0100-24030-24030-0038-00023-00023-00000-1050MAC 59
+         MACRO
+         UPEMSG    &ERNO,&SVC,&MSG     GENERATE ASMGUP ERRORS
+         GBLA      &NBR                ERROR NUMBER IN BINARY
+         GBLC      &CNBR               ERROR NUMBER IN CHARACTER
+         LCLA      &CNT                WORK FOR LENGTH OF MESSAGE
+&NBR     SETA      &ERNO               TRANSFER ERROR NUMBER
+.*
+.*       CONVERT NUMBER TO CHARACTER
+         ELZERO
+&NBR     SETA      &NBR-200            OFFSET NUMBERS FROM 200
+         AIF       ('&SVC' EQ '').SKIP02                          V7A48
+         AIF       ('&MSG' EQ '').SKIP01
+&CNT     SETA      K'&MSG-3            GET LENGTH-1 OF MESSAGE
+$LIT&CNBR DC       AL1(&NBR,&CNT,&SVC),C&MSG
+         MEXIT
+.SKIP01  ANOP
+&CNT     SETA      0
+$LIT&CNBR DC       AL1(&NBR,&CNT,&SVC),C' '
+         MEXIT     ,                                              V7A48
+.SKIP02  ANOP      ,                                              V7A48
+         L         R3,=A(UPERROR)      ERROR BASE                 V7A48
+         LA        R3,$LIT&CNBR-UPERROR(,R3)  ERROR TEXT          V7A48
+         MEND

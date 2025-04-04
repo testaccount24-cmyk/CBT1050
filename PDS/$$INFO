@@ -1,0 +1,87 @@
+Assembler G Version 27A (Waterloo Assembler)
+
+In October 2007, Dan Skomsky posted to the Hercules' Assembler
+discussion group files area his cleaned up version of Assembler G
+from the CBT Tape.  His update incorporates a tremendous effort
+on his part to manually insert the updates to bring the assembler
+to version 27a, which is the latest version of the source known
+to be available.  He subsequently made a modification to one of
+the macros to eliminate an MNOTE during assembly of the ASMG
+source, necessitating the upload of a PTF to replace one
+jobstream in the archive.  The archive available for download
+here has had that PTF incorporated and the ReadMe from the PTF
+archive has been appended to the ReadMe from the original archive
+for documentation.  Otherwise the archive is unchanged from Dan's
+original.  Note that all files contained in the archive are ASCII
+TeXT format created on a Windows system, so each line is
+terminated by X'0d0f', so if you download to a Linux system, you
+need to run the files through fromdos or a similar utility to
+strip the x'0d' characters.  The archive - asmg27a.tgz ÝMD5:
+F91F976484A3E2E9DECF2D0D58301B9C¨ - contains five jobstreams and
+a documentation file:
+
+    ASMGBASE.ASMG27A.jcl
+    ASMGLINK.ASMG27A.jcl
+    LKEDCTL.ASMG27A.jcl
+    MACLIB.ASMG27A.jcl
+    ReadMe.txt
+    SOURCE.ASMG27A.jcl
+
+Modify, to conform to your system environment, and submit
+SOURCE.ASMG27A.jcl, MACLIB.ASMG27A.jcl, and LKEDCTL.ASMG27A.jcl
+which will create three Partitioned Datasets containing the
+source code, macro library, and linkage editor control statements
+required to assemble and link Assembler G.  Modify, to conform to
+your system environment, and submit ASMGBASE.ASMG27A.jcl to
+assemble all modules into a single object library Partitioned
+Dataset.  Modify, to conform to your system environment, and
+submit ASMGLINK.ASMG27A.jcl to link edit the modules, creating
+the load modules that comprise Assembler G.
+
+Ý11 July 2013¨ An archeological expedition on my desktop brought
+to light a page I had photocopied at some unknown time in the
+past with a bit of historical information on Assembler G.
+Obviously when I originally copied the information I intended to
+incorporate it here, alas it became lost on the way and, although
+it has resurfaced, I no longer remember the source of the
+material. But rather than lose it again, I am reproducing the
+information here without further procrastination.
+
+    Assembler G, also known as ASMG, was a fast assembler written
+    at UW ÝUniversity of Waterloo¨. The program was first
+    installed in March of 1968. It was designed for use with the
+    IBM 360 and 370 computer systems (Cowan, Graham, Mackie et
+    al. 28). The assembler was so effective that it was adopted
+    for general use, even at several IBM laboratories (Cowan,
+    Graham, Mackie et al. 4).
+
+    Assembler G was maintained for registered users by UW staff
+    for a monthly fee of $100.00 after it was developed under the
+    direction of R. Petersen. The program was first presented to
+    the computing community at a SHARE Conference held in
+    Houston, Texas in February 1968.
+
+    In spite of its many similarities to Assembler F, in its May
+    1976 issue Datapro noted that Assembler G dramatically out
+    performed ASMF and offered "potential in terms of cost
+    savings and extended features." When the program first
+    appeared, the Computing Centre Newsletter noted that
+    Assembler G was four to five times faster than its immediate
+    predecessor.
+
+    UW Special Collections. GA 133-859. Wes Graham Fonds. Series
+    4.1: UW Files to 1973. "Assembler G Maintenance Agreement," 3.
+    UW Special Collections. GA 133-944. Wes Graham Fonds. Series
+    4.1: UW Files to 1973. Sandra Hope (ed.) "Information About
+    Assembler G," The Computing Centre Newsletter (Issue 7, 10
+    September 1968), 18.
+
+    UW Special Collections. GA 133-1255. Wes Graham Fonds. Series
+    4.2: UW Fiels to 1973. "Assembler G: University of Waterloo,"
+    Datapro (May 1976), 70E-866-1a-1b.
+
+    UW Special Collections. GA 133-944. Wes Graham Fonds. Series
+    4.1: UW Files to 1973. J.P. Sprung (ed.), "Research and
+    Development." The Computing Centre Newsletter. (Issue 2 March
+    11-2, 1968), 4.
+

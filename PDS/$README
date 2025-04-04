@@ -1,0 +1,66 @@
+This ZIP holds everything you should need to correctly Assemble and Link ASMGASM
+with the March 1976 updates applied, ASMG27A.
+
+All target libraries are named CBT507.ASMG27A.???.  Scan all JOB Streams for
+'CBT507' and you will find all references to the target libraries.
+
+I have applied various local fixes/changes/updates every here and there.  Scan f
+my last name, 'Skomsky' to find these.
+
+I used the UPDATE facility within Assembler G to apply all SOURCE updates except
+for module ASMGF1.  Updates for ASMGF1 were applied manually.  DO NOT TRUST ThE
+SEQUENCE NUMBERS WITHIN ASMGF1.  I had to create the sequence numbers manually
+to apply these updates.  I took the easy way out for this task.  I cheated by
+backing into the sequence numbers from the top of thes source deck and from the
+ass end of the source deck.  The sequence numbers then converge somewhere in the
+middle of the member.  It ain't pretty, but it works.
+
+All ASMG27A updates for MACROS were manually applied.  There were only four (4)
+macros updated anyway.
+
+During the update process of Assembler G, I moved ALL MACROS within the SOURCE
+and placed them into the MACLIB where they should have been all along.
+Duplicate MACROS were removed.
+
+While testing various GENERATION options, I encountered Assembly time errors
+with some MACROS and source members.  I applied local fixes to overcome these
+errors.  Again, scan for my last name and you will see how I did this.
+
+I have tested this code the best way I know how.  It should work exactly as The
+University of Waterloo designed it to.  But I cannot guarantee anything.
+
+After you have configured all Job Streams for your computer, run the Job streams
+in the following sequence to get everthing working:
+
+1) MACLIB.ASMG27A.JCLA to load the MACLIB PDS.
+2) LKEDCTL.ASMG27A.JCLA to load the Linkage Editor control PDS.
+3) SOURCE.ASMG27A.JCLA to load the SOURCE PDS.  This is a large file and contain
+   43,000 statements.
+4) ASMGBASE.ASMG27A.JCLA to Assemble all modules and load the OBJLIB PDS.
+5) ASMGLINK.ASMG27A.JCLA to create the LOADLIB PDS with Assembler G (ASMGASM).
+
+The system configuration I currently use consists of:
+
+1) Dell Latitude D610 PM 2.0Ghz with 2048Mb and 80GB HDD.
+2) MS Windows XP Pro w/SP2.
+3) MS Virtual PC 2007.
+4) MS W98SE running in a "guest" Virtual Machine.
+5) Hercules 3.05 running within the W98SE "guest" machine and configured as a 30
+6) IBM MVS 3.8J running within the Hercules/3090 virtual/virtual machine.
+7) CTC SPF/PRO 5.0 running within the W98SE guest machine to do all editing.
+
+
+This is PTF#1 for Assembler G, level ASMG27A.  It corrects an MNOTE issued when
+ASMGF7X is Assembled using IFOX00.
+
+This ZIP holds a replacement for Job Stream MACLIB.ASMG27A.JCLA, but only
+one MACRO has been modified.  MACRO OPCD contained an error with a SETC using a
+specified length and that length is greater than the length of the string
+being manipulate IFOX00 doesn't like that condition while ASSEMBLER G and
+ASSEMBLER H just truncates the string to the shorter length and continue.
+
+Use MACLIB.ASMG27A.JCLA contained within instead of the one contained within
+ASMG27A.ZIP.
+
+Scan MACRO OPCD for my last name "Skomsky" to find my fix.
+
